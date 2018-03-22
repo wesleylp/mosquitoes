@@ -5,7 +5,7 @@ print('OpenCV version %s' % cv2.__version__)
 
 #data path
 vid_path = '../data/'
-vid_name = 'DJI00957'
+vid_name = 'DJI00964'
 vid_format = 'MP4'
 
 #path to save the frames
