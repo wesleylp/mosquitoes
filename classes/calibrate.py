@@ -26,22 +26,22 @@ import os
 if __name__ == '__main__':
     import sys
     import getopt
-    from glob import glob    
+    from glob import glob
 
     args, img_mask = getopt.getopt(sys.argv[1:], '', ['debug=', 'square_size=', 'threads='])
-    
+
     args = dict(args)
     args.setdefault('--debug', './output/')
     args.setdefault('--square_size', 1.0)
     args.setdefault('--threads', 4)
-    
+
     if not img_mask:
-        img_mask = '../data/left??.jpg'  # default            
+        img_mask = '../data/left??.jpg'  # default
     else:
         img_mask = img_mask[0]
-    
+
     img_names = glob(img_mask)
-    
+
     debug_dir = args.get('--debug')
     if debug_dir and not os.path.isdir(debug_dir):
         os.mkdir(debug_dir)
@@ -72,7 +72,7 @@ if __name__ == '__main__':
 
         assert w == img.shape[1] and h == img.shape[0], ("size: %d x %d ... " % (img.shape[1], img.shape[0]))
         found, corners = cv.findChessboardCorners(img, pattern_size)
-        if found:            
+        if found:
             cv.cornerSubPix(img, corners, window_size, (-1, -1), term)
 
         if debug_dir:
@@ -108,11 +108,11 @@ if __name__ == '__main__':
 
     print("\nRMS:", rms)
     print("camera matrix:\n", camera_matrix)
-    print("distortion coefficients: ", dist_coefs.ravel())    
+    print("distortion coefficients: ", dist_coefs.ravel())
 
     # undistort the image with the calibration
-    print('')    
-    for fn in img_names if debug_dir else []:        
+    print('')
+    for fn in img_names if debug_dir else []:
         path, name, ext = splitfn(fn)
         img_found = os.path.join(debug_dir, name + '_chess.png')
         outfile = os.path.join(debug_dir, name + '_undistorted.png')
