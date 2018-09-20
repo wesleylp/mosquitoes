@@ -1,3 +1,4 @@
+import glob
 import json
 import os
 import shlex
@@ -62,7 +63,7 @@ class videoObj:
             raise IOError('Unable to find the total number of frames!')
 
         # sanity check: required frame number is within the video
-        if frame_req < 1 or frame_req > int(nb_frames):
+        if frame_req < 0 or frame_req > int(nb_frames - 1):
             if raiseException is True:
                 raise IOError('Required frame={}: Must be between 1 and {}.'.format(
                     frame_req, self.videoInfo.getNumberOfFrames()))
@@ -79,7 +80,9 @@ class videoObj:
         # openCV frame count is 0-based
         # Reference:
         # https://docs.opencv.org/3.0-beta/modules/videoio/doc/reading_and_writing_video.html
-        video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_req - 1)
+        ret = video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_req)
+        if not ret:
+            print('fail setting {:d} frame number!'.format(frame_req))
 
         # read video
         ret, frame = video_capture.read()
@@ -88,6 +91,8 @@ class videoObj:
         frame_size = None
         if ret:
             frame_size = frame.shape
+        else:
+            print('fail reading {:d} frame number!'.format(frame_req))
         return ret, frame, frame_size
 
     def save_frames(self,
@@ -163,7 +168,7 @@ class videoObj:
         output_path_str = output_folder + filename_format.format(prefix=filename_prefix, ext=ext)
 
         # loop over frames requested
-        for i in range(first_frame, last_frame + 1, frames_skip):
+        for i in range(first_frame, last_frame + 1, frames_skip + 1):
 
             # Get the ith frame
             res, frame, _ = self.get_frame(i)
@@ -184,11 +189,14 @@ class videoObj:
                 print("Error opening the frame %d" % i)
 
     def cam_params(self,
-                   frame_step=20,
+                   frame_step=0,
                    pattern_size=(9, 6),
                    square_size=1.0,
                    criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 30, 0.001),
                    debug=False):
+
+        # TODO: Save a file with the cam params
+        # so that, we don't need to recalcute these all the time
 
         print('Calibrating video: ' + self.videoInfo._fileName + ' ...')
 
@@ -207,7 +215,7 @@ class videoObj:
         last_frame = self.videoInfo.getNumberOfFrames()
 
         # loop over frames
-        for i in tqdm(range(first_frame, last_frame - 1, frame_step)):
+        for i in tqdm(range(first_frame, last_frame - 1, frame_step + 1)):
 
             sleep(0.01)
 
@@ -292,9 +300,20 @@ class videoObj:
         print('computing cam params...')
         ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, (w, h), None, None)
         print('Done!')
+
         return ret, mtx, dist, rvecs, tvecs
 
-        return objpoints, imgpoints
+    def calibration(self, cam_params=cam_params):
+
+        video_dir = os.path.dirname(self.videoInfo.getFilePath())
+        calibrated_vid_path = glob.glob(os.path.join(video_dir, 'undistort*'))
+
+        # check if the undistorted video already exists
+        if calibrated_vid_path:
+            print(calibrated_vid_path)
+            return videoObj(calibrated_vid_path[0])
+        else:
+            pass
 
 
 class videoInfo(object):
@@ -380,10 +399,10 @@ class videoInfo(object):
                 self._width = ffoutput['streams'][self._idxVideoInfo]['width']
                 self._height = ffoutput['streams'][self._idxVideoInfo]['height']
                 self._widthHeight = [self._width, self._height]
-                self._sampleAspectRatio = ffoutput['streams'][self._idxVideoInfo][
-                    'sample_aspect_ratio']
-                self._displayAspectRatio = ffoutput['streams'][self._idxVideoInfo][
-                    'display_aspect_ratio']
+                # self._sampleAspectRatio = ffoutput['streams'][self._idxVideoInfo][
+                # 'sample_aspect_ratio']
+                # self._displayAspectRatio = ffoutput['streams'][self._idxVideoInfo][
+                # 'display_aspect_ratio']
                 self._pixelFormat = ffoutput['streams'][self._idxVideoInfo]['pix_fmt']
                 self._frameRate = ffoutput['streams'][self._idxVideoInfo]['r_frame_rate']
                 self._framesPerSecond = int(self._frameRate[:self._frameRate.index('/')])
