@@ -3,6 +3,7 @@ import json
 import os
 import shlex
 import subprocess
+import time
 from enum import Enum
 from time import sleep
 
@@ -11,6 +12,7 @@ import numpy as np
 from tqdm.autonotebook import tqdm
 
 import cv2
+from annotation import Annotation
 
 
 class imageExtension(Enum):
@@ -31,10 +33,70 @@ class videoObj:
     tools to access database videos.
     """
 
-    def __init__(self, videopath, annotationFilePath=None):
+    def __init__(self, videopath, annotation_path=None):
 
         self.videopath = videopath
         self.videoInfo = videoInfo(self.videopath)
+        self._annotation = Annotation(
+            annotation_path=annotation_path, total_frames=self.videoInfo.getNumberOfFrames())
+
+    def parse_annotation(self):
+        return self._annotation._parse_file()
+
+    def get_annotations(self):
+        if self._annotation.parsed is False:
+            self.parse_annotation()
+        return self._annotation
+
+    def set_annotation(self, new_annotation):
+        self._annotation = new_annotation
+        self._annotation.parsed = True
+        self._annotation.error = False
+
+    def play_video(self, show_bb=False):
+
+        if show_bb and self._annotation.parsed is False:
+            # if somehow there was an error while parsing, do not show bounding boxes
+            show_bb = self.parse_annotation()
+        print(self.videopath)
+        video_capture = cv2.VideoCapture(self.videopath)
+
+        fps = self.videoInfo.getFrameRateFloat()  #or cap.get(cv2.CAP_PROP_FPS)
+        print(fps)
+        wait_fraction = int(
+            770 /
+            fps)  # adjust the 770 factor in order to try the display the video at original fps
+
+        ret, frame = video_capture.read()
+
+        frame_idx = 0
+        print(frame)
+        while ret is True:
+
+            start_time = time.time()
+
+            if show_bb:
+
+                frame_annot = self._annotation.annotation_dict['frame_{:d}'.format(frame_idx)]
+
+                for object_name, bb in frame_annot.items():
+                    frame = _add_bb_on_image(frame, bb, label=object_name)
+
+            delta_time = (time.time() - start_time) * 1000  # secs to ms
+            wait_ms = wait_fraction - delta_time
+
+            # Show frame
+            cv2.imshow(self.videopath, frame)
+            cv2.waitKey(int(wait_ms))  # in miliseconds
+
+            # read next frame
+            ret, frame = video_capture.read()
+            frame_idx += 1
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+        video_capture.release()
+        cv2.destroyAllWindows()
 
     def get_frame(self, frame_req, raiseException=True):
         """This method gets the frame of a video and returns a flag informing
@@ -621,3 +683,30 @@ class videoInfo(object):
         print('Number of frames: ' + str(self._numberOfFrames))
 
         print('\n*************************************')
+
+
+def _add_bb_on_image(image, bounding_box, color=(255, 0, 0), thicknes=3, label=None):
+
+    # color
+    r = int(color[0])
+    g = int(color[1])
+    b = int(color[2])
+
+    # font params
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.5
+    font_thickness = 1
+
+    # bb limits
+    x_i = bounding_box[0]
+    y_i = bounding_box[1]
+    x_o = bounding_box[2]
+    y_o = bounding_box[3]
+
+    # draw bounding box
+    cv2.rectangle(image, (x_i, y_i), (x_o, y_o), (b, g, r), thicknes)
+
+    # TODO: put text
+    if label is not None:
+        pass
+    return image
