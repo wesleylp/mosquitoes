@@ -8,7 +8,7 @@ import seaborn as sns
 from tqdm.autonotebook import tqdm
 
 import cv2
-from img_utils import compute_mse, compute_psnr
+from utils.img_utils import compute_mse, compute_psnr, compute_ssim
 
 sns.set(
     'paper',
@@ -129,24 +129,16 @@ def compare_videos(filepath1,
 
     print('Comparing videos... This may take a while... \n')
 
-    # Load video
-    # vid1 = videoObj(filepath1)
-    # vid2 = videoObj(filepath2)
-
     vid1 = cv2.VideoCapture(filepath1)
     vid2 = cv2.VideoCapture(filepath2)
 
     # # print all videos information
-    # vid1.videoInfo.printAllInformation()
-    # vid2.videoInfo.printAllInformation()
     print('Video 1')
     print_video_info(filepath1)
     print('Video 2')
     print_video_info(filepath2)
 
     # number of frames of both videos
-    # nb_frames_vid1 = vid1.videoInfo.getNumberOfFrames()
-    # nb_frames_vid2 = vid2.videoInfo.getNumberOfFrames()
     nb_frames_vid1 = vid1.get(cv2.CAP_PROP_FRAME_COUNT)
     nb_frames_vid2 = vid2.get(cv2.CAP_PROP_FRAME_COUNT)
 
@@ -209,7 +201,7 @@ def compare_videos(filepath1,
 
             mse.append(compute_mse(frame_vid1, frame_vid2))
             psnr.append(compute_psnr(frame_vid1, frame_vid2))
-            # ssim.append(compute_ssim(frame_vid1, frame_vid2))
+            ssim.append(compute_ssim(frame_vid1, frame_vid2))
 
     vid1.release()
     vid2.release()
@@ -217,16 +209,34 @@ def compare_videos(filepath1,
     return mse, psnr, ssim
 
 
-def compute_cam_params(video_path):
+def compute_cam_params(objpoints, imgpoints, w, h, alpha=0):
+    """[summary]
 
-    objpoints, imgpoints, w, h = chessboard_keypoints(video_path=video_path)
+    Arguments:
+        objpoints {list} -- [points in 3D real world]
+        imgpoints {list} -- [points in 2D image]
+        w {int} -- [image width]
+        h {int} -- [image height]
+
+    Keyword Arguments:
+        alpha {float} -- [Free scaling parameter between 0 (when all the pixels in the undistorted image are valid) and 1 (when all the source image pixels are retained in the undistorted image).
+        alpha=0 means that the rectified images are zoomed and shifted so that only valid pixels are visible (no black areas after rectification). alpha=1 means that the rectified image is decimated and shifted so that all the pixels from the original images from the cameras are retained in the rectified images (no source image pixels are lost). Obviously, any intermediate value yields an intermediate result between those two extreme cases] (default: {0})
+
+    Returns:
+        [dict] -- [camera parameters]
+    """
 
     # Camera calibration
     print('computing cam params...')
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, (w, h), None, None)
 
     # optimize camera matrix
-    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w, h), 0, (w, h))
+    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(
+        mtx,
+        dist,
+        (w, h),
+        alpha=alpha,
+    )
     print('Done!')
 
     cam_params = {
@@ -277,7 +287,7 @@ def chessboard_keypoints(video_path,
     # TODO: Save a file with the cam params
     # so that, we don't need to recalcute these all the time
 
-    print('Detecting keypoint in video: {}...'.format(video_path))
+    print('Detecting keypoints...')
 
     # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
     objp = np.zeros((np.prod(pattern_size), 3), np.float32)
@@ -306,11 +316,6 @@ def chessboard_keypoints(video_path,
 
             # Get the ith frame
             img = video.retrieve()[1]
-            # retval, img, _ = self.get_frame(i)
-
-            # if not retval:
-            #     tqdm.write('video capture failed!')
-            #     break
 
             if verbose:
                 tqdm.write(' Searching for chessboard in frame ' + str(i) + '...')
@@ -326,13 +331,10 @@ def chessboard_keypoints(video_path,
             # full resolution.
             # (https://stackoverflow.com/questions/15018620/findchessboardcorners-cannot-detect-chessboard-on-very-large-images-by-long-foca/15074774)
 
-            # blur before resize
-            # blur = cv2.GaussianBlur(gray, (7, 7), 1)
-
             # resize image
             # TODO: Find a way to compute the best way to compute scale_factor
             # maybe put the image in a standard size before finding keypoints
-            scale_factor = .3
+            scale_factor = .2
             gray_small = cv2.resize(
                 gray, None, fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_AREA)
 
@@ -345,7 +347,7 @@ def chessboard_keypoints(video_path,
             # If found, add object points, image points (after refining them)
             if ret is True:
 
-                if verbose:
+                if verbose or debug:
                     tqdm.write('pattern found')
 
                 # scale up the positions
@@ -361,19 +363,12 @@ def chessboard_keypoints(video_path,
 
                 if debug is True:
 
-                    # print('Searching for chessboard in frame ' + str(i) + '...')
-                    # Draw and display the corners
-                    # img = cv2.drawChessboardCorners(img, pattern_size, corners, ret)
-                    # plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-                    # plt.axis('off')
-                    # plt.show()
-
                     plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
                     plt.scatter(x=corners[:, :, 0], y=corners[:, :, 1], c='r', s=20)
                     plt.show()
                     tqdm.write(str(img.shape))
             else:
-                if verbose:
+                if verbose or debug:
                     tqdm.write('pattern NOT found')
 
                 if debug is True:

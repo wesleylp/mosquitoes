@@ -40,3 +40,10 @@ def compute_psnr(img1, img2):
 
 def compute_ssim(img1, img2, multichannel=True):
     return compare_ssim(img1, img2, multichannel=multichannel)
+
+
+def rectify_img(img, cam_params):
+
+    dst = cv2.undistort(img, cam_params['mtx'], cam_params['dist'], None)
+
+    return dst
