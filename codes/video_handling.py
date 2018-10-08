@@ -5,15 +5,13 @@ import shlex
 import subprocess
 import time
 from enum import Enum
-from time import sleep
 
-import matplotlib.pyplot as plt
-import numpy as np
 from tqdm.autonotebook import tqdm
 
 import cv2
 from annotation import Annotation
 from utils.img_utils import add_bb_on_image
+from utils.vid_utils import chessboard_keypoints, compute_cam_params
 
 
 class imageExtension(Enum):
@@ -137,18 +135,18 @@ class videoObj:
                 return None, None, None
 
         # load video
-        # video_capture = cv2.VideoCapture(self.videopath)
+        video_capture = cv2.VideoCapture(self.videopath)
 
         # get to the frame we want
         # openCV frame count is 0-based: our frames go from 0 to max - 1
         # Reference:
         # https://docs.opencv.org/3.0-beta/modules/videoio/doc/reading_and_writing_video.html
-        ret = self._video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_req)
+        ret = video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_req)
         if not ret:
             print('fail setting {:d} frame number!'.format(frame_req))
 
         # read video
-        ret, frame = self._video_capture.read()
+        ret, frame = video_capture.read()
         # self._video_capture.release()
 
         frame_size = None
@@ -261,116 +259,25 @@ class videoObj:
                    every=1,
                    pattern_size=(9, 6),
                    square_size=1.0,
+                   alpha=0,
                    criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 30, 0.001),
-                   debug=False):
+                   debug=False,
+                   verbose=False):
 
-        # TODO: Save a file with the cam params
-        # so that, we don't need to recalcute these all the time
+        objpoints, imgpoints, w, h = objpoints, imgpoints, w, h = chessboard_keypoints(
+            self.videopath,
+            first_frame=first_frame,
+            last_frame=last_frame,
+            every=every,
+            pattern_size=pattern_size,
+            square_size=square_size,
+            criteria=criteria,
+            debug=debug,
+            verbose=verbose)
 
-        print('Calibrating video: ' + self.videoInfo._fileName + ' ...')
+        cam_params = compute_cam_params(objpoints, imgpoints, w, h, alpha=alpha)
 
-        # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
-        objp = np.zeros((np.prod(pattern_size), 3), np.float32)
-        objp[:, :2] = np.indices(pattern_size).T.reshape(-1, 2)
-        objp *= square_size
-
-        # Arrays to store object points and image points from all the images.
-        objpoints = []  # 3d point in real world space
-        imgpoints = []  # 2d points in image plane.
-        num_pat_found = 0  # number of images where the pattern has been found
-
-        # Frames to scan in order to detect keypoints
-        if last_frame is None:
-            last_frame = self.videoInfo.getNumberOfFrames()
-
-        # loop over frames
-        for i in tqdm(range(first_frame, last_frame, every)):
-
-            sleep(0.01)
-
-            # Get the ith frame
-            retval, img, _ = self.get_frame(i)
-
-            if not retval:
-                tqdm.write('video capture failed!')
-                break
-
-            tqdm.write(' Searching for chessboard in frame ' + str(i) + '...')
-
-            # convert to grayscale
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            (w, h) = gray.shape
-
-            # cv2.FindChessboardCorners cannot detect chessboard on very large images
-            # The likely correct way to proceed is to start at a lower resolution
-            # (i.e. downsizing), then scale up the positions of the corners thus found,
-            # and use them as the initial estimates for a run of cvFindCornersSubpix at
-            # full resolution.
-            # (https://stackoverflow.com/questions/15018620/findchessboardcorners-cannot-detect-chessboard-on-very-large-images-by-long-foca/15074774)
-
-            # blur before resize
-            # blur = cv2.GaussianBlur(gray, (7, 7), 1)
-
-            # resize image
-            # TODO: Find a way to compute the best way to compute scale_factor
-            # maybe put the image in a standard size before finding keypoints
-            scale_factor = .3
-            gray_small = cv2.resize(
-                gray, None, fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_AREA)
-
-            # Find the chess board corners
-            ret, corners_small = cv2.findChessboardCorners(
-                gray_small,
-                pattern_size,
-                flags=cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE)
-
-            # If found, add object points, image points (after refining them)
-            if ret is True:
-
-                tqdm.write('pattern found')
-
-                # scale up the positions
-                corners = corners_small / scale_factor
-
-                # update number of images where the pattern has been found
-                num_pat_found += 1
-
-                corners = cv2.cornerSubPix(gray, corners, (5, 5), (-1, -1), criteria)
-
-                objpoints.append(objp)
-                imgpoints.append(corners)
-
-                if debug is True:
-
-                    # print('Searching for chessboard in frame ' + str(i) + '...')
-                    # Draw and display the corners
-                    # img = cv2.drawChessboardCorners(img, pattern_size, corners, ret)
-                    # plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-                    # plt.axis('off')
-                    # plt.show()
-
-                    plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-                    plt.scatter(x=corners[:, :, 0], y=corners[:, :, 1], c='r', s=20)
-                    plt.show()
-                    tqdm.write(str(img.shape))
-            else:
-                tqdm.write('pattern NOT found')
-
-                if debug is True:
-                    # Draw and display the corners
-                    plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-                    plt.axis('off')
-                    plt.show()
-                    tqdm.write(str(img.shape))
-
-        print('Number of pattern found: ', num_pat_found)
-
-        # Camera calibration
-        print('computing cam params...')
-        ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, (w, h), None, None)
-        print('Done!')
-
-        return ret, mtx, dist, rvecs, tvecs
+        return cam_params
 
     def calibration(self, cam_params=cam_params):
 
