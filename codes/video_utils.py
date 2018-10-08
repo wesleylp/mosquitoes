@@ -37,6 +37,7 @@ class videoObj:
 
         self.videopath = videopath
         self.videoInfo = videoInfo(self.videopath)
+
         self._annotation = Annotation(
             annotation_path=annotation_path, total_frames=self.videoInfo.getNumberOfFrames())
 
@@ -98,6 +99,7 @@ class videoObj:
         video_capture.release()
         cv2.destroyAllWindows()
 
+
     def get_frame(self, frame_req, raiseException=True):
         """This method gets the frame of a video and returns a flag informing
         if it was possible, along with the frame itself and the frame size.
@@ -135,20 +137,19 @@ class videoObj:
                 return None, None, None
 
         # load video
-        video_capture = cv2.VideoCapture(self.videopath)
+        # video_capture = cv2.VideoCapture(self.videopath)
 
         # get to the frame we want
-        # We make frame_req-1, because for this API, our frames go from 1 to max
-        # openCV frame count is 0-based
+        # openCV frame count is 0-based: our frames go from 0 to max - 1
         # Reference:
         # https://docs.opencv.org/3.0-beta/modules/videoio/doc/reading_and_writing_video.html
-        ret = video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_req)
+        ret = self._video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_req)
         if not ret:
             print('fail setting {:d} frame number!'.format(frame_req))
 
         # read video
-        ret, frame = video_capture.read()
-        video_capture.release()
+        ret, frame = self._video_capture.read()
+        # self._video_capture.release()
 
         frame_size = None
         if ret:
@@ -158,22 +159,23 @@ class videoObj:
         return ret, frame, frame_size
 
     def save_frames(self,
-                    first_frame,
-                    last_frame,
-                    frames_skip,
+                    first_frame=0,
+                    last_frame=None,
+                    every=1,
                     output_folder=None,
                     extension=imageExtension.JPG,
                     jpeg_quality=95,
                     compression_level=3,
                     binary_format=True,
-                    filename_prefix='frame_'):
+                    filename_prefix='frame_',
+                    verbose=False):
         """This method saves the frames between 'first_frame' and 'last_frame'
-        (including them) skiping 'frames_skip' frames
+        (including them) at 'every' frames
 
         Arguments:
             first_frame {int} -- [Nunber of first frame to save]
             last_frame {int} -- [Number of last frame to save]
-            frames_skip {int} -- [Number of frame to skip]
+            every {int} -- [save at 'every' number of frames]
 
 
         Keyword Arguments:
@@ -229,8 +231,11 @@ class videoObj:
         filename_format = '/{prefix}{{:04d}}.{ext}'
         output_path_str = output_folder + filename_format.format(prefix=filename_prefix, ext=ext)
 
+        if last_frame is None:
+            last_frame = self.videoInfo.getNumberOfFrames()
+
         # loop over frames requested
-        for i in range(first_frame, last_frame + 1, frames_skip + 1):
+        for i in tqdm(range(first_frame, last_frame, every)):
 
             # Get the ith frame
             res, frame, _ = self.get_frame(i)
@@ -242,16 +247,18 @@ class videoObj:
 
                 # Save image based on the extension
 
-                if os.path.isfile(output_path):
-                    print("File sucessfully saved: %s" % output_path)
+                if os.path.isfile(output_path) and verbose:
+                    tqdm.write("File sucessfully saved: %s" % output_path)
                 else:
-                    print("Error saving file saved: %s" % output_path)
+                    tqdm.write("Error saving file saved: %s" % output_path)
 
             else:
-                print("Error opening the frame %d" % i)
+                tqdm.write("Error opening the frame %d" % i)
 
     def cam_params(self,
-                   frame_step=0,
+                   first_frame=0,
+                   last_frame=None,
+                   every=1,
                    pattern_size=(9, 6),
                    square_size=1.0,
                    criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 30, 0.001),
@@ -273,11 +280,11 @@ class videoObj:
         num_pat_found = 0  # number of images where the pattern has been found
 
         # Frames to scan in order to detect keypoints
-        first_frame = 1
-        last_frame = self.videoInfo.getNumberOfFrames()
+        if last_frame is None:
+            last_frame = self.videoInfo.getNumberOfFrames()
 
         # loop over frames
-        for i in tqdm(range(first_frame, last_frame - 1, frame_step + 1)):
+        for i in tqdm(range(first_frame, last_frame, every)):
 
             sleep(0.01)
 
@@ -678,7 +685,7 @@ class videoInfo(object):
         print('Frame rate: ' + str(self._frameRate))
         print('Duration ts: ' + str(self._durationTS))
         print('Duration: ' + str(self._duration))
-        # print('Real douration: ' + str(self._real))
+        # print('Real duration: ' + str(self._real))
         print('Bit rate: ' + str(self._bitRate))
         print('Number of frames: ' + str(self._numberOfFrames))
 
