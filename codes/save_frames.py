@@ -1,62 +1,40 @@
 import os
 
-from tqdm.autonotebook import tqdm
+from utils.vid_utils import save_frames
 
-import cv2
+if __name__ == '__main__':
 
+    import argparse
 
-def save_frames(input_path,
-                output_path,
-                first_frame=0,
-                last_frame=None,
-                save_every=1,
-                verbose=False):
+    parser = argparse.ArgumentParser(description='Rectify videos.')
 
-    # Load video
-    vid = cv2.VideoCapture(input_path)
+    parser.add_argument(
+        '--datapath',
+        type=str,
+        default='../data/DJI4_cam/2018-09-05/seq001',
+        help='Data path of videos to extract frames from.')
 
-    nb_frames_vid = vid.get(cv2.CAP_PROP_FRAME_COUNT)
+    parser.add_argument('--save_every', type=int, default=50, help='Number of frames to skip.')
 
-    if last_frame is None:
-        last_frame = int(nb_frames_vid)
+    args = parser.parse_args()
 
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
+    data_path = args.datapath
+    save_every = args.save_every
 
-    for idx in tqdm(range(first_frame, last_frame)):
+    data_path = '../data/DJI4_cam/2018-09-05/seq001'
 
-        if verbose:
-            tqdm.write('On frame {} of {}'.format(idx + 1, last_frame))
+    for (dirpath, dirnames, filenames) in os.walk(data_path):
 
-        vid.grab()
+        if len(filenames) == 0:
+            continue
 
-        if (idx % save_every) == 0:
+        for filename in filenames:
 
-            frame_vid = vid.retrieve()[1]
+            if filename.lower().endswith(('.mov', '.mp4')):
 
-            compression_level = 3
-            ext_params = [cv2.IMWRITE_PNG_COMPRESSION, compression_level]
+                input_path = os.path.join(dirpath, filename)
+                output_path = os.path.join(dirpath, os.path.splitext(filename)[0])
 
-            cv2.imwrite(
-                os.path.join(output_path, 'frame_{:04d}.png'.format(idx)), frame_vid, ext_params)
-
-    vid.release()
-
-
-data_path = '../data/DJI4_cam/2018-09-05/seq001'
-
-for (dirpath, dirnames, filenames) in os.walk(data_path):
-
-    if len(filenames) == 0:
-        continue
-
-    for filename in filenames:
-
-        if filename.lower().endswith(('.mov', '.mp4')):
-
-            input_path = os.path.join(dirpath, filename)
-            output_path = os.path.join(dirpath, os.path.splitext(filename)[0])
-
-            print(input_path)
-            print(output_path)
-            save_frames(input_path, output_path, save_every=50)
+                print(input_path)
+                print(output_path)
+                save_frames(input_path, output_path, save_every=save_every)
