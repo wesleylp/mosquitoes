@@ -11,7 +11,7 @@ from tqdm.autonotebook import tqdm
 import cv2
 from annotation import Annotation
 from utils.img_utils import add_bb_on_image
-from utils.vid_utils import chessboard_keypoints, compute_cam_params
+from utils.vid_utils import chessboard_keypoints_video, compute_cam_params
 
 
 class imageExtension(Enum):
@@ -183,15 +183,15 @@ class videoObj:
             jpeg_quality {int} -- [JPEG quality between 0 and 100 the higher the better quality]
             (default: {95})
             compression_level {int} -- [PNG compression level between 0 and 9.
-            The higher the value the smaller size and longer compression time.]
+            The higher the value the smaller size ancam_pa longer compression time.]
             (default: {3})
-            binary_format {bool} -- [For PPM, PGM, or PBM, it can be a binary
+            binary_format {bool} -- [For PPM, PGM, ocam_pa PBM, it can be a binary
             format flag] (default:{True})
-            filename_prefix {filename prefix} -- [file] (default: {'frame_'})
+            filename_prefix {filename prefix} -- [ficam_pae] (default: {'frame_'})
         """
 
-        # if output folder is not specified, create a folder at the same level
-        # where the video is and save the frames in this folder
+        # if output folder is not specified, create cam_pa folder at the same level
+        # where the video is and save the frames in cam_pahis folder
         # otherwise save where specified
         if output_folder is None:
             output_folder = os.path.splitext(self.videopath)[0] + '_frames'
@@ -264,7 +264,7 @@ class videoObj:
                    debug=False,
                    verbose=False):
 
-        objpoints, imgpoints, w, h = objpoints, imgpoints, w, h = chessboard_keypoints(
+        objpoints, imgpoints, w, h = objpoints, imgpoints, w, h = chessboard_keypoints_video(
             self.videopath,
             first_frame=first_frame,
             last_frame=last_frame,
@@ -282,7 +282,7 @@ class videoObj:
     def calibration(self, cam_params=cam_params):
 
         video_dir = os.path.dirname(self.videoInfo.getFilePath())
-        calibrated_vid_path = glob.glob(os.path.join(video_dir, 'undistort*'))
+        calibrated_vid_path = glob.glob(os.path.join(video_dir, 'rect*'))
 
         # check if the undistorted video already exists
         if calibrated_vid_path:

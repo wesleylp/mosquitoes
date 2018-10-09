@@ -1,7 +1,8 @@
 import glob
 import os
 
-from utils.vid_utils import compute_cam_params, rectify_video
+from utils.vid_utils import (chessboard_keypoints_video, compute_cam_params,
+                             rectify_video)
 
 if __name__ == '__main__':
 
@@ -21,9 +22,18 @@ if __name__ == '__main__':
         default=5,
         help='The quality level of new videos generated. From 0 to 10. the higher, the better.')
 
+    parser.add_argument(
+        '--alpha',
+        type=float,
+        default=0.0,
+        help=
+        'Free scaling parameter between 0 (when all the pixels in the undistorted image are valid) and 1 (when all the source image pixels are retained in the undistorted image'
+    )
+
     args = parser.parse_args()
 
     data_path = args.datapath
+    alpha = args.alpha
     quality = args.quality
 
     for (dirpath, dirnames, filenames) in os.walk(data_path):
@@ -37,8 +47,8 @@ if __name__ == '__main__':
 
                 calibration_path = os.path.join(dirpath, dirname, 'calibration')
                 video_calib_path = glob.glob(os.path.join(calibration_path, '*.MOV'))[0]
-                print(video_calib_path)
-                cam_params = compute_cam_params(video_path=video_calib_path)
+                objpoints, imgpoints, w, h = chessboard_keypoints_video(video_path=video_calib_path)
+                cam_params = compute_cam_params(objpoints, imgpoints, w, h, alpha=alpha)
 
                 missions_path = os.path.join(dirpath, dirname, 'missions')
                 videos_missions = glob.glob(os.path.join(missions_path, '*.MOV'))
