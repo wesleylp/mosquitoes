@@ -53,51 +53,6 @@ class videoObj:
         self._annotation.parsed = True
         self._annotation.error = False
 
-    def play_video(self, show_bb=False):
-
-        if show_bb and self._annotation.parsed is False:
-            # if somehow there was an error while parsing, do not show bounding boxes
-            show_bb = self.parse_annotation()
-        print(self.videopath)
-        video_capture = cv2.VideoCapture(self.videopath)
-
-        fps = self.videoInfo.getFrameRateFloat()  # or cap.get(cv2.CAP_PROP_FPS)
-        print(fps)
-        wait_fraction = int(
-            770 /
-            fps)  # adjust the 770 factor in order to try the display the video at original fps
-
-        ret, frame = video_capture.read()
-
-        frame_idx = 0
-        print(frame)
-        while ret is True:
-
-            start_time = time.time()
-
-            if show_bb:
-
-                frame_annot = self._annotation.annotation_dict['frame_{:d}'.format(frame_idx)]
-
-                for object_name, bb in frame_annot.items():
-                    frame = add_bb_on_image(frame, bb, label=object_name)
-
-            delta_time = (time.time() - start_time) * 1000  # secs to ms
-            wait_ms = wait_fraction - delta_time
-
-            # Show frame
-            cv2.imshow(self.videopath, frame)
-            cv2.waitKey(int(wait_ms))  # in miliseconds
-
-            # read next frame
-            ret, frame = video_capture.read()
-            frame_idx += 1
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-        video_capture.release()
-        cv2.destroyAllWindows()
-
     def get_frame(self, frame_req, raiseException=True):
         """This method gets the frame of a video and returns a flag informing
         if it was possible, along with the frame itself and the frame size.
@@ -155,6 +110,92 @@ class videoObj:
         else:
             print('fail reading {:d} frame number!'.format(frame_req))
         return ret, frame, frame_size
+
+    def play_video(self, show_bb=False):
+
+        if show_bb and self._annotation.parsed is False:
+            # if somehow there was an error while parsing, do not show bounding boxes
+            show_bb = self.parse_annotation()
+        print(self.videopath)
+        video_capture = cv2.VideoCapture(self.videopath)
+
+        fps = self.videoInfo.getFrameRateFloat()  # or cap.get(cv2.CAP_PROP_FPS)
+
+        wait_fraction = int(
+            770 /
+            fps)  # adjust the 770 factor in order to try the display the video at original fps
+
+        ret, frame = video_capture.read()
+
+        frame_idx = 0
+
+        while ret is True:
+
+            start_time = time.time()
+
+            if show_bb:
+
+                frame_annot = self._annotation.annotation_dict['frame_{:d}'.format(frame_idx)]
+
+                for object_name, bb in frame_annot.items():
+                    frame = add_bb_on_image(frame, bb, label=object_name)
+
+            delta_time = (time.time() - start_time) * 1000  # secs to ms
+            wait_ms = wait_fraction - delta_time
+
+            # Show frame
+            cv2.imshow(self.videopath, frame)
+            cv2.waitKey(int(wait_ms))  # in miliseconds
+
+            # read next frame
+            ret, frame = video_capture.read()
+            frame_idx += 1
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+        video_capture.release()
+        cv2.destroyAllWindows()
+
+    def play_frame_by_frame(self, show_bb=False):
+
+        print('Playing video frame by frame \n')
+        print('press \'s\' to next frame')
+        print('press \'a\' to previos frame')
+        print('press \'q\' to quit\n')
+
+        if show_bb and self._annotation.parsed is False:
+            # if somehow there was an error while parsing, do not show bounding boxes
+            show_bb = self.parse_annotation()
+
+        # get the total number of video frames
+        nb_frames = self.videoInfo.getNumberOfFrames()
+
+        frame_idx = 0
+
+        while frame_idx < int(nb_frames):
+
+            res, frame, _ = self.get_frame(frame_idx)
+
+            if show_bb:
+
+                frame_annot = self._annotation.annotation_dict['frame_{:d}'.format(frame_idx)]
+
+                for object_name, bb in frame_annot.items():
+                    frame = add_bb_on_image(frame, bb, label=object_name)
+
+            cv2.imshow('Frame{:04d}'.format(frame_idx), frame)
+
+            wkey = cv2.waitKey(0)
+            key = chr(wkey % 256)
+
+            if key == 'a':
+                frame_idx -= 1
+            elif key == 's':
+                frame_idx += 1
+            elif key == 'q':
+                cv2.destroyAllWindows()
+                return
 
     def save_frames(self,
                     first_frame=0,

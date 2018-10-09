@@ -1,3 +1,4 @@
+import fnmatch
 import os
 from time import sleep
 
@@ -428,3 +429,35 @@ def save_frames(input_path,
                 os.path.join(output_path, 'frame_{:04d}.png'.format(idx)), frame_vid, ext_params)
 
     vid.release()
+
+
+def find_annot_file(video_path, annot_folder):
+    """Find annotation file based on video name.
+
+    Arguments:
+        video_path {str} -- video path
+        annot_folder {str} -- folder where to look in order to find the annotation file
+
+    Returns:
+        str -- [The annotation file path]
+    """
+
+    vid_filename = os.path.split(video_path)[-1]
+    vid_filename, vid_ext = os.path.splitext(vid_filename)
+
+    found = False
+
+    for (dirpath, dirnames, filenames) in os.walk(annot_folder):
+
+        if len(filenames) == 0:
+            continue
+
+        for file_name in filenames:
+
+            if fnmatch.fnmatch(file_name, vid_filename + '.txt'):
+                annot_path = os.path.join(dirpath, file_name)
+                found = True
+                break
+        if found:
+            break
+    return annot_path
