@@ -8,7 +8,8 @@ import seaborn as sns
 from tqdm.autonotebook import tqdm
 
 import cv2
-from utils.img_utils import compute_mse, compute_psnr, compute_ssim
+from utils.img_utils import (compute_mse, compute_psnr, compute_ssim, find_chessboard_keypoints_img,
+                             rectify_img)
 
 sns.set(
     'paper',
@@ -233,7 +234,7 @@ def compute_cam_params(objpoints, imgpoints, w, h, alpha=0):
     # optimize camera matrix
     newcameramtx, roi = cv2.getOptimalNewCameraMatrix(
         mtx,
-        dist,
+        dist[0][:4],
         (w, h),
         alpha=alpha,
     )
@@ -242,7 +243,7 @@ def compute_cam_params(objpoints, imgpoints, w, h, alpha=0):
     cam_params = {
         'ret': ret,
         'mtx': mtx,
-        'dist': dist,
+        'dist': dist[0][:4],
         'rvecs': rvecs,
         'tvecs': rvecs,
         'newcameramtx': newcameramtx,
@@ -274,15 +275,16 @@ def print_video_info(filepath):
     print('\n')
 
 
-def chessboard_keypoints(video_path,
-                         first_frame=0,
-                         last_frame=None,
-                         every=20,
-                         pattern_size=(9, 6),
-                         square_size=1.0,
-                         criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 30, 0.001),
-                         debug=False,
-                         verbose=False):
+def chessboard_keypoints_video(video_path,
+                               first_frame=0,
+                               last_frame=None,
+                               every=20,
+                               pattern_size=(9, 6),
+                               square_size=1.0,
+                               criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 30,
+                                         0.001),
+                               debug=False,
+                               verbose=False):
 
     # TODO: Save a file with the cam params
     # so that, we don't need to recalcute these all the time
@@ -320,43 +322,21 @@ def chessboard_keypoints(video_path,
             if verbose:
                 tqdm.write(' Searching for chessboard in frame ' + str(i) + '...')
 
-            # convert to grayscale
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-            (w, h) = gray.shape
+            ret, corners, w, h = find_chessboard_keypoints_img(
+                img=img,
+                pattern_size=pattern_size,
+                square_size=square_size,
+                criteria=criteria,
+                debug=debug,
+                verbose=verbose)
 
-            # cv2.FindChessboardCorners cannot detect chessboard on very large images
-            # The likely correct way to proceed is to start at a lower resolution
-            # (i.e. downsizing), then scale up the positions of the corners thus found,
-            # and use them as the initial estimates for a run of cvFindCornersSubpix at
-            # full resolution.
-            # (https://stackoverflow.com/questions/15018620/findchessboardcorners-cannot-detect-chessboard-on-very-large-images-by-long-foca/15074774)
-
-            # resize image
-            # TODO: Find a way to compute the best way to compute scale_factor
-            # maybe put the image in a standard size before finding keypoints
-            scale_factor = .2
-            gray_small = cv2.resize(
-                gray, None, fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_AREA)
-
-            # Find the chess board corners
-            ret, corners_small = cv2.findChessboardCorners(
-                gray_small,
-                pattern_size,
-                flags=cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE)
-
-            # If found, add object points, image points (after refining them)
             if ret is True:
 
                 if verbose or debug:
                     tqdm.write('pattern found')
 
-                # scale up the positions
-                corners = corners_small / scale_factor
-
                 # update number of images where the pattern has been found
                 num_pat_found += 1
-
-                corners = cv2.cornerSubPix(gray, corners, (5, 5), (-1, -1), criteria)
 
                 objpoints.append(objp)
                 imgpoints.append(corners)
@@ -399,18 +379,13 @@ def rectify_video(input_path, output_path, cam_params, quality=5):
     # load original video and its fps
     reader = imageio.get_reader(input_path)
     fps = reader.get_meta_data()['fps']
-    # nb_frames = reader.get_meta_data()['nframes']
-
-    mtx = cam_params['mtx']
-    dist = cam_params['dist']
-    newcameramtx = cam_params['newcameramtx']
 
     # Crio o writer para gerar um vídeo de saída com qualidade 10 (menor compressão possível)
     writer = imageio.get_writer(output_path, fps=fps, quality=quality)
 
     print('generating video: {}'.format(output_path))
     for img in tqdm(reader):
-        dst = cv2.undistort(img, mtx, dist, None, newcameramtx)
+        dst = rectify_img(img, cam_params)
         writer.append_data(dst)
 
     writer.close()
