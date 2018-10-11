@@ -47,7 +47,8 @@ if __name__ == '__main__':
 
                 calibration_path = os.path.join(dirpath, dirname, 'calibration')
                 video_calib_path = glob.glob(os.path.join(calibration_path, '*.MOV'))[0]
-                objpoints, imgpoints, w, h = chessboard_keypoints_video(video_path=video_calib_path)
+                objpoints, imgpoints, w, h = chessboard_keypoints_video(
+                    video_path=video_calib_path, every=10)
                 cam_params = compute_cam_params(objpoints, imgpoints, w, h, alpha=alpha)
 
                 missions_path = os.path.join(dirpath, dirname, 'missions')
