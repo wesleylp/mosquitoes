@@ -1,8 +1,8 @@
 import glob
 import os
 
-from utils.vid_utils import (chessboard_keypoints_video, compute_cam_params,
-                             rectify_video)
+from utils.calibration import (compute_cam_params, compute_undistortion_map,
+                               find_chessboard_kpts_video, rectify_video)
 
 if __name__ == '__main__':
 
@@ -45,15 +45,21 @@ if __name__ == '__main__':
 
             if 'seq' in dirname:
 
+                # setting calibration video path
                 calibration_path = os.path.join(dirpath, dirname, 'calibration')
                 video_calib_path = glob.glob(os.path.join(calibration_path, '*.MOV'))[0]
-                objpoints, imgpoints, w, h = chessboard_keypoints_video(
-                    video_path=video_calib_path, every=10)
-                cam_params = compute_cam_params(objpoints, imgpoints, w, h, alpha=alpha)
 
+                # computing cam params and maps
+                objpoints, imgpoints, img_size = find_chessboard_kpts_video(
+                    video_path=video_calib_path, every=10)
+                cam_params = compute_cam_params(objpoints, imgpoints, img_size, alpha=alpha)
+                maps = compute_undistortion_map(cam_params, img_size)
+
+                # setting missions videos path
                 missions_path = os.path.join(dirpath, dirname, 'missions')
                 videos_missions = glob.glob(os.path.join(missions_path, '*.MOV'))
 
+                # applying calibration to each video
                 for video_mission in videos_missions:
 
                     print('Rectifying video {} ...'.format(video_mission))
@@ -62,4 +68,4 @@ if __name__ == '__main__':
                     video_rectified_name = 'rectfied_' + video_name
                     output_path = os.path.join(missions_path, video_rectified_name)
 
-                    rectify_video(video_mission, output_path, cam_params, quality)
+                    rectify_video(video_mission, output_path, cam_params, maps, quality)
