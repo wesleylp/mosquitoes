@@ -233,18 +233,14 @@ def compute_cam_params(objpoints, imgpoints, w, h, alpha=0):
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, (w, h), None, None)
 
     # optimize camera matrix
-    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(
-        mtx,
-        dist[0][:4],
-        (w, h),
-        alpha=alpha,
-    )
+    # we use only k1,k2, p1, and p2 dist coeff because using more coefs can lead to numerical instability
+    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist[0][:4], (w, h), alpha, (w, h))
     print('Done!')
 
     cam_params = {
         'ret': ret,
         'mtx': mtx,
-        'dist': dist[0][:4],
+        'dist': dist,
         'rvecs': rvecs,
         'tvecs': rvecs,
         'newcameramtx': newcameramtx,
