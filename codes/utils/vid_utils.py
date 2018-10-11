@@ -1,3 +1,4 @@
+import fnmatch
 import os
 from time import sleep
 
@@ -232,18 +233,14 @@ def compute_cam_params(objpoints, imgpoints, w, h, alpha=0):
     ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, (w, h), None, None)
 
     # optimize camera matrix
-    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(
-        mtx,
-        dist[0][:4],
-        (w, h),
-        alpha=alpha,
-    )
+    # we use only k1,k2, p1, and p2 dist coeff because using more coefs can lead to numerical instability
+    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist[0][:4], (w, h), alpha, (w, h))
     print('Done!')
 
     cam_params = {
         'ret': ret,
         'mtx': mtx,
-        'dist': dist[0][:4],
+        'dist': dist,
         'rvecs': rvecs,
         'tvecs': rvecs,
         'newcameramtx': newcameramtx,
@@ -428,3 +425,35 @@ def save_frames(input_path,
                 os.path.join(output_path, 'frame_{:04d}.png'.format(idx)), frame_vid, ext_params)
 
     vid.release()
+
+
+def find_annot_file(video_path, annot_folder):
+    """Find annotation file based on video name.
+
+    Arguments:
+        video_path {str} -- video path
+        annot_folder {str} -- folder where to look in order to find the annotation file
+
+    Returns:
+        str -- [The annotation file path]
+    """
+
+    vid_filename = os.path.split(video_path)[-1]
+    vid_filename, vid_ext = os.path.splitext(vid_filename)
+
+    found = False
+
+    for (dirpath, dirnames, filenames) in os.walk(annot_folder):
+
+        if len(filenames) == 0:
+            continue
+
+        for file_name in filenames:
+
+            if fnmatch.fnmatch(file_name, vid_filename + '.txt'):
+                annot_path = os.path.join(dirpath, file_name)
+                found = True
+                break
+        if found:
+            break
+    return annot_path

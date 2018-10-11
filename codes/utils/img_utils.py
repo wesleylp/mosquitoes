@@ -50,9 +50,11 @@ def find_chessboard_keypoints_img(img,
                                   debug=False,
                                   verbose=False):
 
+    # get image size
+    h, w = img.shape[:2]
+
     # convert to grayscale
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    (w, h) = gray.shape
 
     # cv2.FindChessboardCorners cannot detect chessboard on very large images
     # The likely correct way to proceed is to start at a lower resolution
@@ -64,7 +66,7 @@ def find_chessboard_keypoints_img(img,
     # resize image
     # TODO: Find a way to compute the best way to compute scale_factor
     # maybe put the image in a standard size before finding keypoints
-    scale_factor = .2
+    scale_factor = .3
     gray_small = cv2.resize(
         gray, None, fx=scale_factor, fy=scale_factor, interpolation=cv2.INTER_AREA)
 
@@ -72,7 +74,9 @@ def find_chessboard_keypoints_img(img,
 
     # Find the chess board corners
     ret, corners_small = cv2.findChessboardCorners(
-        gray_small, pattern_size, flags=cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE)
+        gray_small,
+        pattern_size,
+        flags=cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_NORMALIZE_IMAGE + cv2.CALIB_CB_FAST_CHECK)
 
     # If found, add object points, image points (after refining them)
     if ret is True:
@@ -80,13 +84,20 @@ def find_chessboard_keypoints_img(img,
         # scale up the positions
         corners = corners_small / scale_factor
 
-        corners = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
+        corners = cv2.cornerSubPix(gray, corners, (23, 23), (-1, -1), criteria)
 
     return ret, corners, w, h
 
 
 def rectify_img(img, cam_params):
 
-    dst = cv2.undistort(img, cam_params['mtx'], cam_params['dist'], None)
+    # undistorting image
+    # we use only k1,k2, p1, and p2 dist coeff because using more coefs can lead to numerical instability
+    dst = cv2.undistort(img, cam_params['mtx'], cam_params['dist'][0][:4], None,
+                        cam_params['newcameramtx'])
+
+    # crop and save the image
+    x, y, w, h = cam_params['roi']
+    dst = dst[y:y + h, x:x + w]
 
     return dst
