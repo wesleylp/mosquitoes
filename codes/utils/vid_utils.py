@@ -1,16 +1,13 @@
 import fnmatch
 import os
-from time import sleep
 
 import imageio
 import matplotlib.pyplot as plt
-import numpy as np
 import seaborn as sns
 from tqdm.autonotebook import tqdm
 
 import cv2
-from utils.img_utils import (compute_mse, compute_psnr, compute_ssim, find_chessboard_keypoints_img,
-                             rectify_img)
+from utils.img_utils import compute_mse, compute_psnr, compute_ssim
 
 sns.set(
     'paper',
@@ -33,6 +30,20 @@ def generate_video_opencv(input_path,
                           codec='X264',
                           fps=None,
                           verbose=False):
+    """Generates a video with the frames extracted from the input video using opencv.
+
+    Arguments:
+        input_path {str} -- input video path
+        output_path {str} -- output video path
+
+    Keyword Arguments:
+        first_frame {int} -- first frame to consider (default: {0})
+        last_frame {inte} -- last frame to consider. If None, consider last frame of original video (default: {None})
+        skip_frames {int} -- Number of frames to skip (default: {0})
+        codec {str} -- codec to generate the video (default: {'X264'})
+        fps {float} -- video frame rate. If None, use the input video frame rate (default: {None})
+        verbose {bool} -- Flag to output some information (default: {False})
+    """
 
     print('This may take a while...')
 
@@ -81,16 +92,14 @@ def generate_video_opencv(input_path,
 
 
 def generate_video_imageio(input_path, output_path, quality):
-    '''
-    Produz um vídeo de saída (fileDestino) com os frames do vídeo de origem (fileOrigem) utilizando
-    o ImageIO, wrapper do ffmpeg.
-    Argumentos:
-        * fileOrigem: Caminho do vídeo de origem.
-        * fileDestino Caminho do vídeo de saída.
-        * quality: Qualidade utilizada pelo codec, onde:
-                   0: maior compressão possível (pior qualidade)
-                   10: menor compressão possível (melhor qualidade)
-    '''
+    """Generates a video with the frames extracted from the input video using imageio, ffmpeg wrapper.
+
+    Arguments:
+        input_path {str} -- input video path
+        output_path {str} -- output video path
+        quality {float} -- video quality. Based on CRF from ffmpeg. The higher the quality, the better the video but the larger the size
+    """
+
     # Carrego o vídeo de origem e seu fps
     reader = imageio.get_reader(input_path)
     fps = reader.get_meta_data()['fps']
@@ -211,45 +220,6 @@ def compare_videos(filepath1,
     return mse, psnr, ssim
 
 
-def compute_cam_params(objpoints, imgpoints, w, h, alpha=0):
-    """[summary]
-
-    Arguments:
-        objpoints {list} -- [points in 3D real world]
-        imgpoints {list} -- [points in 2D image]
-        w {int} -- [image width]
-        h {int} -- [image height]
-
-    Keyword Arguments:
-        alpha {float} -- [Free scaling parameter between 0 (when all the pixels in the undistorted image are valid) and 1 (when all the source image pixels are retained in the undistorted image).
-        alpha=0 means that the rectified images are zoomed and shifted so that only valid pixels are visible (no black areas after rectification). alpha=1 means that the rectified image is decimated and shifted so that all the pixels from the original images from the cameras are retained in the rectified images (no source image pixels are lost). Obviously, any intermediate value yields an intermediate result between those two extreme cases] (default: {0})
-
-    Returns:
-        [dict] -- [camera parameters]
-    """
-
-    # Camera calibration
-    print('computing cam params...')
-    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, (w, h), None, None)
-
-    # optimize camera matrix
-    # we use only k1,k2, p1, and p2 dist coeff because using more coefs can lead to numerical instability
-    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist[0][:4], (w, h), alpha, (w, h))
-    print('Done!')
-
-    cam_params = {
-        'ret': ret,
-        'mtx': mtx,
-        'dist': dist,
-        'rvecs': rvecs,
-        'tvecs': rvecs,
-        'newcameramtx': newcameramtx,
-        'roi': roi
-    }
-
-    return cam_params
-
-
 def print_video_info(filepath):
 
     filesize = compute_video_size(filepath)
@@ -270,123 +240,6 @@ def print_video_info(filepath):
     print('resolution: {}'.format(resolution))
 
     print('\n')
-
-
-def chessboard_keypoints_video(video_path,
-                               first_frame=0,
-                               last_frame=None,
-                               every=20,
-                               pattern_size=(9, 6),
-                               square_size=1.0,
-                               criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 30,
-                                         0.001),
-                               debug=False,
-                               verbose=False):
-
-    # TODO: Save a file with the cam params
-    # so that, we don't need to recalcute these all the time
-
-    print('Detecting keypoints...')
-
-    # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
-    objp = np.zeros((np.prod(pattern_size), 3), np.float32)
-    objp[:, :2] = np.indices(pattern_size).T.reshape(-1, 2)
-    objp *= square_size
-
-    # Arrays to store object points and image points from all the images.
-    objpoints = []  # 3d point in real world space
-    imgpoints = []  # 2d points in image plane.
-    num_pat_found = 0  # number of images where the pattern has been found
-
-    video = cv2.VideoCapture(video_path)
-
-    # Frames to scan in order to detect keypoints
-    if last_frame is None:
-        last_frame = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-
-    # loop over frames
-    for i in tqdm(range(first_frame, last_frame)):
-
-        sleep(0.01)
-
-        video.grab()
-
-        if (i % every) == 0:
-
-            # Get the ith frame
-            img = video.retrieve()[1]
-
-            if verbose:
-                tqdm.write(' Searching for chessboard in frame ' + str(i) + '...')
-
-            ret, corners, w, h = find_chessboard_keypoints_img(
-                img=img,
-                pattern_size=pattern_size,
-                square_size=square_size,
-                criteria=criteria,
-                debug=debug,
-                verbose=verbose)
-
-            if ret is True:
-
-                if verbose or debug:
-                    tqdm.write('pattern found')
-
-                # update number of images where the pattern has been found
-                num_pat_found += 1
-
-                objpoints.append(objp)
-                imgpoints.append(corners)
-
-                if debug is True:
-
-                    plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-                    plt.scatter(x=corners[:, :, 0], y=corners[:, :, 1], c='r', s=20)
-                    plt.show()
-                    tqdm.write(str(img.shape))
-            else:
-                if verbose or debug:
-                    tqdm.write('pattern NOT found')
-
-                if debug is True:
-                    # Draw and display the corners
-                    plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-                    plt.axis('off')
-                    plt.show()
-                    tqdm.write(str(img.shape))
-
-    print('Number of pattern found: ', num_pat_found)
-
-    return objpoints, imgpoints, w, h
-
-
-def rectify_video(input_path, output_path, cam_params, quality=5):
-    """Rectify the input video by generating a new video using imageio,
-    a ffmpeg wrapper, with quality 'quality'
-
-    Arguments:
-        input_path {str} -- [input video path]
-        output_path {str} -- [output video path]
-        cam_params {dict} -- [dict containing camera parameters]
-
-    Keyword Arguments:
-        quality {int} -- [video quality from 0 to 10. The higher, the better] (default: {5})
-    """
-
-    # load original video and its fps
-    reader = imageio.get_reader(input_path)
-    fps = reader.get_meta_data()['fps']
-
-    # Crio o writer para gerar um vídeo de saída com qualidade 10 (menor compressão possível)
-    writer = imageio.get_writer(output_path, fps=fps, quality=quality)
-
-    print('generating video: {}'.format(output_path))
-    for img in tqdm(reader):
-        dst = rectify_img(img, cam_params)
-        writer.append_data(dst)
-
-    writer.close()
-    print('Done!')
 
 
 def save_frames(input_path,

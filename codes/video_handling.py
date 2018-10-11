@@ -10,8 +10,8 @@ from tqdm.autonotebook import tqdm
 
 import cv2
 from annotation import Annotation
+from utils.calibration import compute_cam_params, find_chessboard_kpts_video
 from utils.img_utils import add_bb_on_image
-from utils.vid_utils import chessboard_keypoints_video, compute_cam_params
 
 
 class imageExtension(Enum):
@@ -305,7 +305,7 @@ class videoObj:
                    debug=False,
                    verbose=False):
 
-        objpoints, imgpoints, w, h = objpoints, imgpoints, w, h = chessboard_keypoints_video(
+        objpoints, imgpoints, img_size = objpoints, imgpoints, img_size = find_chessboard_kpts_video(
             self.videopath,
             first_frame=first_frame,
             last_frame=last_frame,
@@ -316,7 +316,7 @@ class videoObj:
             debug=debug,
             verbose=verbose)
 
-        cam_params = compute_cam_params(objpoints, imgpoints, w, h, alpha=alpha)
+        cam_params = compute_cam_params(objpoints, imgpoints, img_size, alpha=alpha)
 
         return cam_params
 
