@@ -40,6 +40,7 @@ def compute_psnr(img1, img2):
 
 def compute_ssim(img1, img2, multichannel=True):
     return compare_ssim(img1, img2, multichannel=multichannel)
+<<<<<<< HEAD
 
 
 def find_chessboard_keypoints_img(img,
@@ -101,3 +102,5 @@ def rectify_img(img, cam_params):
     dst = dst[y:y + h, x:x + w]
 
     return dst
+=======
+>>>>>>> dev
