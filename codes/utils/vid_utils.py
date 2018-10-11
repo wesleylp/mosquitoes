@@ -220,48 +220,6 @@ def compare_videos(filepath1,
     return mse, psnr, ssim
 
 
-<<<<<<< HEAD
-def compute_cam_params(objpoints, imgpoints, w, h, alpha=0):
-    """[summary]
-
-    Arguments:
-        objpoints {list} -- [points in 3D real world]
-        imgpoints {list} -- [points in 2D image]
-        w {int} -- [image width]
-        h {int} -- [image height]
-
-    Keyword Arguments:
-        alpha {float} -- [Free scaling parameter between 0 (when all the pixels in the undistorted image are valid) and 1 (when all the source image pixels are retained in the undistorted image).
-        alpha=0 means that the rectified images are zoomed and shifted so that only valid pixels are visible (no black areas after rectification). alpha=1 means that the rectified image is decimated and shifted so that all the pixels from the original images from the cameras are retained in the rectified images (no source image pixels are lost). Obviously, any intermediate value yields an intermediate result between those two extreme cases] (default: {0})
-
-    Returns:
-        [dict] -- [camera parameters]
-    """
-
-    # Camera calibration
-    print('computing cam params...')
-    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, (w, h), None, None)
-
-    # optimize camera matrix
-    # we use only k1,k2, p1, and p2 dist coeff because using more coefs can lead to numerical instability
-    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist[0][:4], (w, h), alpha, (w, h))
-    print('Done!')
-
-    cam_params = {
-        'ret': ret,
-        'mtx': mtx,
-        'dist': dist,
-        'rvecs': rvecs,
-        'tvecs': rvecs,
-        'newcameramtx': newcameramtx,
-        'roi': roi
-    }
-
-    return cam_params
-
-
-=======
->>>>>>> dev
 def print_video_info(filepath):
 
     filesize = compute_video_size(filepath)
