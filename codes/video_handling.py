@@ -4,14 +4,18 @@ import os
 import shlex
 import subprocess
 import time
+import warnings
 from enum import Enum
 
+import numpy as np
 from tqdm.autonotebook import tqdm
 
 import cv2
 from annotation import Annotation
 from utils.calibration import compute_cam_params, find_chessboard_kpts_video
 from utils.img_utils import add_bb_on_image
+
+warnings.filterwarnings("ignore")
 
 
 class imageExtension(Enum):
@@ -110,6 +114,25 @@ class videoObj:
         else:
             print('fail reading {:d} frame number!'.format(frame_req))
         return ret, frame, frame_size
+
+    def get_all_frames(self):
+
+        frames = []
+
+        video_capture = cv2.VideoCapture(self.videopath)
+
+        ret, frame = video_capture.read()
+
+        while ret is True:
+
+            frames.append(frame)
+            ret, frame = video_capture.read()
+
+        frames = np.stack(np.array(frames), axis=0)
+
+        # frames = np.stack([np.array(img) for (_, img) in video_capture.read()], axis=0)
+
+        return frames
 
     def play_video(self, show_bb=False):
 
