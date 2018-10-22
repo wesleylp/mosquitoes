@@ -24,10 +24,10 @@ if __name__ == '__main__':
         help='Folder where the annotation files are.')
 
     parser.add_argument(
-        '--showbb', type=bool, default=False, help='Whether display bounding box or not.')
+        '--showbb', action='store_true', help='Whether display bounding box or not.')
 
     parser.add_argument(
-        '--framebyframe', type=bool, default=False, help='If true, display video frame by frame.')
+        '--framebyframe', action='store_true', help='If true, display video frame by frame.')
 
     args = parser.parse_args()
 
