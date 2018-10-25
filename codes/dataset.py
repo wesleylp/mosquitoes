@@ -1,38 +1,34 @@
-import os
-
+from utils.files_utils import Directory
 from utils.vid_utils import find_annot_file
 from video_handling import videoObj
 
 
 class VideoDataset:
-    def __init__(self, root_dir, annotation_folder):
+    def __init__(self, root_dir, annotation_folder, transform=None):
+        ext = ('.mp4', '.mov')
         self.root_dir = root_dir
+        self.video_list = Directory.get_files(self.root_dir, ext, recursive=True)
         self.annotation_folder = annotation_folder
+        self.transform = transform
 
     def __len__(self):
+        return len(self.video_list)
 
-        videos = []
+    def __getitem__(self, idx):
 
-        for (dirpath, dirnames, filenames) in os.walk(self.root_dir):
+        # look for annotation file
+        annot_path = find_annot_file(self.video_list[idx], self.annotation_folder)
 
-            if len(filenames) == 0:
-                continue
-
-            # getting only the video files
-            [videos.append(s) for s in filenames if s.lower().endswith(('.mov', '.mp4'))]
-
-        return len(videos)
-
-    def __getitem__(self, video_path):
-
-        annot_path = find_annot_file(video_path, self.annotation_folder)
-
-        vid = videoObj(video_path, annot_path)
-        videoname = vid.videopath
+        vid = videoObj(self.video_list[idx], annot_path)
 
         frames = vid.get_all_frames()
-        bboxes = [bbox for bbox in vid._annotation.annotation_dict.values()]
+        annot = vid.get_annotations()
 
-        sample = {'{:s}'.format(videoname): {'frames': frames, 'bboxes': bboxes}}
+        if self.transform:
+            frames = self.transform(frames)
+
+        bboxes = [bbox for bbox in annot.annotation_dict.values()]
+
+        sample = {'frames': frames, 'bboxes': bboxes}
 
         return sample
