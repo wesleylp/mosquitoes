@@ -14,7 +14,7 @@ class Annotation:
             return False
 
         # create dictonary with number of frames
-        self.annotation_dict = {'frame_{:d}'.format(d): {} for d in range(self.total_frames)}
+        self.annotation_dict = {'frame_{:04d}'.format(d): {} for d in range(self.total_frames)}
 
         # reading annotation file
         with open(self.annotation_path) as annotation_file:
@@ -35,7 +35,7 @@ class Annotation:
                     frame_idx = int(frame[1])
                     bb = [int(frame[p]) for p in list(range(2, 6))]
 
-                    self.annotation_dict['frame_{:d}'.format(frame_idx)][object_name] = bb
+                    self.annotation_dict['frame_{:04d}'.format(frame_idx)][object_name] = bb
                     continue
         annotation_file.close()
 
@@ -49,3 +49,6 @@ class Annotation:
             return self._parse_file()
         else:
             return self.error
+
+    def get_annoted_frame(self, frame_idx):
+        return self.annotation_dict['frame_{:04d}'.format(frame_idx)]
