@@ -4,7 +4,7 @@ from video_handling import videoObj
 
 
 class VideoDataset:
-    def __init__(self, root_dir, annotation_folder, transform=None):
+    def __init__(self, root_dir, annotation_folder=None, transform=None):
         ext = ('.mp4', '.mov')
         self.root_dir = root_dir
         self.video_list = Directory.get_files(self.root_dir, ext, recursive=True)
@@ -16,8 +16,10 @@ class VideoDataset:
 
     def __getitem__(self, idx):
 
-        # look for annotation file
-        annot_path = find_annot_file(self.video_list[idx], self.annotation_folder)
+        annot_path = None
+        if self.annotation_folder is not None:
+            # look for annotation file
+            annot_path = find_annot_file(self.video_list[idx], self.annotation_folder)
 
         vid = videoObj(self.video_list[idx], annot_path)
 
@@ -28,6 +30,7 @@ class VideoDataset:
             frames = self.transform(frames)
 
         bboxes = [bbox for bbox in annot.annotation_dict.values()]
+        bboxes = annot.annotation_dict
 
         sample = {'frames': frames, 'bboxes': bboxes}
 
