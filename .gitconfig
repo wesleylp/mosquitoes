@@ -1,0 +1,13 @@
+lter "nbstrip_basic"]
+clean = "jq --indent 1 \
+        ' (.cells[] | select(has(\"execution_count\")) | .execution_count) = null  \
+        | .cells[].metadata = {} \
+        '"
+smudge = cat
+required = true
+
+[filter "nbstrip_output"]
+clean = "jq --indent 1 \
+        '(.cells[] | select(has(\"outputs\")) | .outputs) = []  \
+        '"
+smudge = cat
