@@ -30,6 +30,12 @@ def add_bb_on_image(image, bounding_box, color=(255, 0, 0), thicknes=3, label=No
     return image
 
 
+def add_bboxes_on_image(image, bboxes, color=(255, 0, 0), thicknes=3, label=None):
+    for key, bb in bboxes.items():
+        image = add_bb_on_image(image, bb, color, thicknes, label=key)
+    return image
+
+
 def compute_mse(img1, img2):
     return compare_mse(img1, img2)
 
