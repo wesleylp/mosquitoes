@@ -2,9 +2,10 @@ import os
 
 
 class Annotation:
-    def __init__(self, annotation_path=None, total_frames=None):
+    def __init__(self, annotation_path=None, total_frames=None, encoding='ISO-8859-1'):
         self.total_frames = total_frames
         self.annotation_path = annotation_path
+        self.encoding = encoding
         self.annotation_dict = {}
         self.parsed = False
         self.error = False
@@ -17,7 +18,7 @@ class Annotation:
         self.annotation_dict = {'frame_{:04d}'.format(d): {} for d in range(self.total_frames)}
 
         # reading annotation file
-        with open(self.annotation_path) as annotation_file:
+        with open(self.annotation_path, encoding=self.encoding) as annotation_file:
 
             # reading line
             for line in annotation_file:
