@@ -3,7 +3,7 @@ from utils.vid_utils import find_annot_file
 from video_handling import videoObj
 
 
-class VideoDataset:
+class VideoLoader:
     def __init__(self, root_dir, annotation_folder=None, transform=None):
         ext = ('.mp4', '.mov')
         self.root_dir = root_dir
