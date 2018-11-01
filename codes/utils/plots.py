@@ -27,7 +27,12 @@ def bar_plot(data):
 
 
 # Helper function to show a batch
-def show_bboxes_batch(sample_batched, bboxes_batched, normalized=True, nrow=4, padding=2):
+def show_bboxes_batch(sample_batched,
+                      bboxes_batched,
+                      bboxes_thickness=3,
+                      normalized=True,
+                      nrow=4,
+                      padding=2):
     """Show image with bboxes for a batch of samples."""
 
     frames_batch = sample_batched
@@ -44,8 +49,9 @@ def show_bboxes_batch(sample_batched, bboxes_batched, normalized=True, nrow=4, p
         ax = plt.subplot(ncol, nrow, idx + 1)
 
         img = frames_batch[idx, ]
+        img = add_bboxes_on_image(img, bboxes_batch[frame], thickness=bboxes_thickness)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = add_bboxes_on_image(img, bboxes_batch[frame])
+
         ax.imshow(img)
         ax.set_xticks([])
         ax.set_yticks([])
