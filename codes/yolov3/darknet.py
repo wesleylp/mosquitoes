@@ -19,7 +19,10 @@ class Darknet(nn.Module):
         modules = self.blocks[1:]
         outputs = {}  # We cache the outputs for the route layer
 
-        write = 0  # flag used to indicate whether we have encountered the first detection or not. If write is 0, it means the collector hasn't been initialized. If it is 1, it means that the collector has been initialized and we can just concatenate our detection maps to it
+        # flag used to indicate whether we have encountered the first detection or not.
+        # If write is 0, it means the collector hasn't been initialized.
+        # If it is 1, it means that the collector has been initialized and we can just concatenate our detection maps to it
+        write = 0
         for i, module in enumerate(modules):
             module_type = (module["type"])
 
@@ -27,7 +30,7 @@ class Darknet(nn.Module):
                 x = self.module_list[i](x)
 
             elif module_type == "route":
-                layers = module["layers"]
+                layers = module["layers"].split(",")
                 layers = [int(a) for a in layers]
 
                 if (layers[0]) > 0:
@@ -72,6 +75,96 @@ class Darknet(nn.Module):
 
         return detections
 
+    def load_weights(self, weightfile):
+        # Open the weights file
+        fp = open(weightfile, "rb")
+
+        # The first 5 values are header information
+        # 1. Major version number
+        # 2. Minor Version Number
+        # 3. Subversion number
+        # 4,5. Images seen by the network (during training)
+        header = np.fromfile(fp, dtype=np.int32, count=5)
+        self.header = torch.from_numpy(header)
+        self.seen = self.header[3]
+
+        weights = np.fromfile(fp, dtype=np.float32)
+
+        ptr = 0
+        for i in range(len(self.module_list)):
+            module_type = self.blocks[i + 1]["type"]
+
+            # If module_type is convolutional load weights
+            # Otherwise ignore.
+            if module_type == "convolutional":
+                model = self.module_list[i]
+                try:
+                    batch_normalize = int(self.blocks[i+1]["batch_normalize"])
+                except:
+                    batch_normalize = 0
+
+                conv = model[0]
+
+                if (batch_normalize):
+                    bn = model[1]
+
+                    # Get the number of weights of Batch Norm Layer
+                    num_bn_biases = bn.bias.numel()
+
+                    # Load the weights
+                    bn_biases = torch.from_numpy(
+                        weights[ptr:ptr + num_bn_biases])
+                    ptr += num_bn_biases
+
+                    bn_weights = torch.from_numpy(
+                        weights[ptr: ptr + num_bn_biases])
+                    ptr += num_bn_biases
+
+                    bn_running_mean = torch.from_numpy(
+                        weights[ptr: ptr + num_bn_biases])
+                    ptr += num_bn_biases
+
+                    bn_running_var = torch.from_numpy(
+                        weights[ptr: ptr + num_bn_biases])
+                    ptr += num_bn_biases
+
+                    # Cast the loaded weights into dims of model weights.
+                    bn_biases = bn_biases.view_as(bn.bias.data)
+                    bn_weights = bn_weights.view_as(bn.weight.data)
+                    bn_running_mean = bn_running_mean.view_as(bn.running_mean)
+                    bn_running_var = bn_running_var.view_as(bn.running_var)
+
+                    # Copy the data to model
+                    bn.bias.data.copy_(bn_biases)
+                    bn.weight.data.copy_(bn_weights)
+                    bn.running_mean.copy_(bn_running_mean)
+                    bn.running_var.copy_(bn_running_var)
+
+                else:
+                    # Number of biases
+                    num_biases = conv.bias.numel()
+
+                    # Load the weights
+                    conv_biases = torch.from_numpy(
+                        weights[ptr: ptr + num_biases])
+                    ptr = ptr + num_biases
+
+                    # reshape the loaded weights according to the dims of the model weights
+                    conv_biases = conv_biases.view_as(conv.bias.data)
+
+                    # Finally copy the data
+                    conv.bias.data.copy_(conv_biases)
+
+                # Let us load the weights for the Convolutional layers
+                num_weights = conv.weight.numel()
+
+                # Do the same as above for weights
+                conv_weights = torch.from_numpy(weights[ptr:ptr+num_weights])
+                ptr = ptr + num_weights
+
+                conv_weights = conv_weights.view_as(conv.weight.data)
+                conv.weight.data.copy_(conv_weights)
+
 
 def parse_cfg(cfgfile):
     """
@@ -86,7 +179,8 @@ def parse_cfg(cfgfile):
     lines = file.read().split('\n')  # store the lines in a list
     lines = [x for x in lines if len(x) > 0]  # get read of the empty lines
     lines = [x for x in lines if x[0] != '#']  # get rid of comments
-    lines = [x.rstrip().lstrip() for x in lines]  # get rid of fringe whitespaces
+    lines = [x.rstrip().lstrip()
+             for x in lines]  # get rid of fringe whitespaces
 
     block = {}
     blocks = []
@@ -107,10 +201,13 @@ def parse_cfg(cfgfile):
 
 
 def create_modules(blocks):
-    net_info = blocks[0]  # Captures the information about the input and pre-processing
+    # Captures the information about the input and pre-processing
+
+    net_info = blocks[0]
     module_list = nn.ModuleList()
-    prev_filters = 3
-    output_filters = []
+    # prev_filters = 3
+    # output_filters = []
+    output_filters = [int(net_info["channels"])]
 
     for index, x in enumerate(blocks[1:]):
         module = nn.Sequential()
@@ -122,6 +219,11 @@ def create_modules(blocks):
         if (x["type"] == "convolutional"):
             # Get the info about the layer
             activation = x["activation"]
+            filters = int(x["filters"])
+            padding = int(x["pad"])
+            kernel_size = int(x["size"])
+            stride = int(x["stride"])
+
             try:
                 batch_normalize = int(x["batch_normalize"])
                 bias = False
@@ -129,18 +231,14 @@ def create_modules(blocks):
                 batch_normalize = 0
                 bias = True
 
-            filters = int(x["filters"])
-            padding = int(x["pad"])
-            kernel_size = int(x["size"])
-            stride = int(x["stride"])
-
             if padding:
                 pad = (kernel_size - 1) // 2
             else:
                 pad = 0
 
             # Add the convolutional layer
-            conv = nn.Conv2d(prev_filters, filters, kernel_size, stride, pad, bias=bias)
+            conv = nn.Conv2d(output_filters[-1], filters,
+                             kernel_size, stride, pad, bias=bias)
             module.add_module("conv_{0}".format(index), conv)
 
             # Add the Batch Norm Layer
@@ -154,37 +252,55 @@ def create_modules(blocks):
                 activn = nn.LeakyReLU(0.1, inplace=True)
                 module.add_module("leaky_{0}".format(index), activn)
 
+        elif (x["type"] == "maxpool"):
+            kernel_size = int(x["size"])
+            stride = int(x["stride"])
+            if kernel_size == 2 and stride == 1:
+                padding = nn.ZeroPad2d((0, 1, 0, 1))
+                module.add_module("_debug_padding_{0}".format(index), padding)
+            maxpool = nn.MaxPool2d(kernel_size, stride,
+                                   int((kernel_size - 1) // 2))
+            module.add_module("maxpool_{}".format(index), maxpool)
+
         # If it's an upsampling layer
         # We use Bilinear2dUpsampling
         elif (x["type"] == "upsample"):
             stride = int(x["stride"])
-            upsample = nn.Upsample(scale_factor=2, mode="bilinear")
+            # upsample = nn.Upsample(scale_factor=2, mode="bilinear")
+            upsample = nn.Upsample(scale_factor=stride, mode="bilinear")
             module.add_module("upsample_{}".format(index), upsample)
 
         # If it is a route layer
         elif (x["type"] == "route"):
-            x["layers"] = x["layers"].split(',')
-            # Start  of a route
-            start = int(x["layers"][0])
-            # end, if there exists one.
-            try:
-                end = int(x["layers"][1])
-            except:
-                end = 0
-            # Positive anotation
-            if start > 0:
-                start = start - index
-            if end > 0:
-                end = end - index
+            # x["layers"] = x["layers"].split(',')
+            # # Start  of a route
+            # start = int(x["layers"][0])
+            # # end, if there exists one.
+            # try:
+            #     end = int(x["layers"][1])
+            # except:
+            #     end = 0
+            # # Positive anotation
+            # if start > 0:
+            #     start = start - index
+            # if end > 0:
+            #     end = end - index
+            # route = EmptyLayer()
+            # module.add_module("route_{0}".format(index), route)
+            # if end < 0:
+            #     filters = output_filters[index +
+            #                              start] + output_filters[index + end]
+            # else:
+            #     filters = output_filters[index + start]
+
+            layers = [int(a) for a in x["layers"].split(",")]
+            filters = sum([output_filters[layer_i] for layer_i in layers])
             route = EmptyLayer()
             module.add_module("route_{0}".format(index), route)
-            if end < 0:
-                filters = output_filters[index + start] + output_filters[index + end]
-            else:
-                filters = output_filters[index + start]
 
         # shortcut corresponds to skip connection
         elif x["type"] == "shortcut":
+            filters = output_filters[int(x["from"])]
             shortcut = EmptyLayer()
             module.add_module("shortcut_{}".format(index), shortcut)
 
@@ -195,14 +311,18 @@ def create_modules(blocks):
 
             anchors = x["anchors"].split(",")
             anchors = [int(a) for a in anchors]
-            anchors = [(anchors[i], anchors[i + 1]) for i in range(0, len(anchors), 2)]
+            anchors = [(anchors[i], anchors[i + 1])
+                       for i in range(0, len(anchors), 2)]
             anchors = [anchors[i] for i in mask]
 
-            detection = DetectionLayer(anchors)
+            num_classes = int(x["classes"])
+            im_height = int(net_info["height"])
+
+            detection = YOLOLayer(anchors, 80, 416)
             module.add_module("Detection_{}".format(index), detection)
 
         module_list.append(module)
-        prev_filters = filters
+        # prev_filters = filters
         output_filters.append(filters)
 
     return (net_info, module_list)
@@ -213,7 +333,19 @@ class EmptyLayer(nn.Module):
         super(EmptyLayer, self).__init__()
 
 
-class DetectionLayer(nn.Module):
-    def __init__(self, anchors):
-        super(DetectionLayer, self).__init__()
+class YOLOLayer(nn.Module):
+    """Detection Layer"""
+
+    def __init__(self, anchors, num_classes, img_dim, ignore_thres=0.5, lambda_coord=1):
+        super(YOLOLayer, self).__init__()
         self.anchors = anchors
+        self.num_anchors = len(anchors)
+        self.num_classes = num_classes
+        self.bbox_attrs = 5 + num_classes
+        self.image_dim = img_dim
+        self.ignore_thres = ignore_thres
+        self.lambda_coord = lambda_coord
+
+        self.mse_loss = nn.MSELoss(size_average=True)  # Coord loss
+        self.bce_loss = nn.BCELoss(size_average=True)  # Confidence Loss
+        self.ce_loss = nn.CrossEntropyLoss()  # Class loss
