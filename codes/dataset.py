@@ -70,12 +70,15 @@ class MosquitoDataset(object):
         if annot_path is not None:
             frame_number = _get_frame_number(self.frames_list[idx])
             annotation = AnnotationImage(frame_number, annot_path)
-            boxes, labels = annotation.get_bboxes_labels()
+            boxes, classes = annotation.get_bboxes_labels()
 
         # TODO: Make a better decision about this
         else:
-            boxes, labels = [], []
+            boxes, classes = [], [0]
             print('Annotation not found: ', self.frames_list[idx])
+
+        # TODO: check and fix it, if necessary
+        labels = torch.ones(len(classes))
 
         boxes = torch.as_tensor(boxes).reshape(-1, 4)  # guard against no boxes
         # create a BoxList from the boxes
