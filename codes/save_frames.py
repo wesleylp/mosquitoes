@@ -6,7 +6,7 @@ if __name__ == '__main__':
 
     import argparse
 
-    parser = argparse.ArgumentParser(description='Rectify videos.')
+    parser = argparse.ArgumentParser(description='Save videos frames.')
 
     parser.add_argument(
         '--datapath',
@@ -20,8 +20,6 @@ if __name__ == '__main__':
 
     data_path = args.datapath
     save_every = args.save_every
-
-    data_path = '../data/DJI4_cam/2018-09-05/seq001'
 
     for (dirpath, dirnames, filenames) in os.walk(data_path):
 
