@@ -7,20 +7,24 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from utils.plot import bar_plot
+from utils.plots import bar_plot
 from utils.vid_utils import compute_video_size
 
 sns.set(
     'paper',
-    'white',
-    font_scale=2.0,
+    font_scale=2.5,
     rc={
         'lines.linewidth': 2,
-        'figure.figsize': (16.0, 12.0),
+        'text.usetex': True,
         'image.interpolation': 'nearest',
-        'image.cmap': 'gray'
+        'image.cmap': 'gray',
+        'figure.figsize': (12.0, 10.0),
+        'legend.frameon': True,
+        'legend.fancybox': True,
     })
-sns.set_palette('Paired', 12)
+sns.set_style('whitegrid', {'axes.grid': False})
+sns.set_palette('colorblind', color_codes=True)
+sns.palplot(sns.color_palette("Paired", 12))
 
 if __name__ == '__main__':
 
@@ -31,7 +35,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--datapath',
         type=str,
-        default='../data/DJI4_cam/2018-09-05/seq001',
+        default='../../data/DJI4_cam/2018-09-05/seq001',
         help='Data path of results of videos compared.')
 
     args = parser.parse_args()
@@ -91,9 +95,16 @@ if __name__ == '__main__':
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax.set_ylabel('PSNR [dB]')
-    ax.set_xticklabels(('Video 1\n 140.6MB', 'Video 2\n 1.8GB', 'Video 3\n 1.8GB',
-                        'Video 4\n 1.8GB'))
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), fancybox=True, shadow=True, ncol=6)
+    ax.set_xticklabels(('Video 1 (140.6MB)', 'Video 2 (1.8GB)', 'Video 3 (1.8GB)',
+                        'Video 4 (1.8GB)'))
+
+    ax.legend(
+        [f'quality={q}' for q in np.arange(0, df_mean.shape[1] + 1)],
+        loc='upper center',
+        bbox_to_anchor=(0.5, 1.2),
+        fancybox=True,
+        shadow=True,
+        ncol=4)
     plt.ylim([15, 40])
 
     text_format = '{:.2f}MB'
@@ -125,4 +136,4 @@ if __name__ == '__main__':
 
         count += 1
 
-    plot.savefig(os.path.join(data_path, 'comparisson.pdf'))
+    plot.savefig(os.path.join(data_path, 'comparisson.pdf'), bbox_inches='tight')
