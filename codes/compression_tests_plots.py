@@ -23,8 +23,7 @@ sns.set(
         'legend.fancybox': True,
     })
 sns.set_style('whitegrid', {'axes.grid': False})
-sns.set_palette('colorblind', color_codes=True)
-sns.palplot(sns.color_palette("Paired", 12))
+sns.set_palette(sns.color_palette("Paired",10), 10, color_codes=False)
 
 if __name__ == '__main__':
 
