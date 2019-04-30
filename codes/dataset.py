@@ -3,7 +3,7 @@ from utils.vid_utils import find_annot_file
 from video_handling import videoObj
 
 
-class VideoDataset:
+class VideoLoader:
     def __init__(self, root_dir, annotation_folder=None, transform=None):
         ext = ('.mp4', '.mov')
         self.root_dir = root_dir
@@ -23,15 +23,16 @@ class VideoDataset:
 
         vid = videoObj(self.video_list[idx], annot_path)
 
-        frames = vid.get_all_frames()
-        annot = vid.get_annotations()
+        frames = vid.get_batch_frames()
+        # annot = vid.get_annotations()
+        bboxes = vid.get_batch_annotations()
 
         if self.transform:
             frames = self.transform(frames)
 
-        bboxes = [bbox for bbox in annot.annotation_dict.values()]
-        bboxes = annot.annotation_dict
+        # bboxes = [bbox for bbox in annot.annotation_dict.values()]
+        # bboxes = annot.annotation_dict
 
-        sample = {'frames': frames, 'bboxes': bboxes}
+        sample = {'clip': vid, 'frames': frames, 'bboxes': bboxes}
 
         return sample

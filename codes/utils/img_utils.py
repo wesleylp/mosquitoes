@@ -3,7 +3,7 @@ from skimage.measure import compare_mse, compare_psnr, compare_ssim
 import cv2
 
 
-def add_bb_on_image(image, bounding_box, color=(255, 0, 0), thicknes=3, label=None):
+def add_bb_on_image(image, bounding_box, color=(255, 0, 0), thickness=5, label=None):
 
     # color
     r = int(color[0])
@@ -22,11 +22,17 @@ def add_bb_on_image(image, bounding_box, color=(255, 0, 0), thicknes=3, label=No
     y_o = bounding_box[3]
 
     # draw bounding box
-    cv2.rectangle(image, (x_i, y_i), (x_o, y_o), (b, g, r), thicknes)
+    cv2.rectangle(image, (x_i, y_i), (x_o, y_o), (b, g, r), thickness)
 
     # TODO: put text
     if label is not None:
         pass
+    return image
+
+
+def add_bboxes_on_image(image, bboxes, color=(255, 0, 0), thickness=5, label=None):
+    for key, bb in bboxes.items():
+        image = add_bb_on_image(image, bb, color, thickness, label=key)
     return image
 
 
