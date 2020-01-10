@@ -7,10 +7,10 @@ import time
 import warnings
 from enum import Enum
 
+import cv2
 import numpy as np
 from tqdm.autonotebook import tqdm
 
-import cv2
 from annotation import Annotation
 from utils.calibration import compute_cam_params, find_chessboard_kpts_video
 from utils.img_utils import add_bb_on_image
@@ -242,6 +242,7 @@ class videoObj:
         while ret is True:
 
             start_time = time.time()
+            key = cv2.waitKey(1) & 0xFF
 
             if show_bb:
 
@@ -253,15 +254,25 @@ class videoObj:
             delta_time = (time.time() - start_time) * 1000  # secs to ms
             wait_ms = wait_fraction - delta_time
 
+            # pause
+            if key == ord('p'):
+                while True:
+                    key2 = cv2.waitKey(1) or 0xFF
+                    cv2.imshow(self.videopath, frame)
+
+                    if key2 == ord('p'):
+                        break
+
             # Show frame
             cv2.imshow(self.videopath, frame)
             cv2.waitKey(int(wait_ms))  # in miliseconds
+            print(frame_idx)
 
             # read next frame
             ret, frame = video_capture.read()
             frame_idx += 1
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if key == ord('q'):
                 break
 
         video_capture.release()
