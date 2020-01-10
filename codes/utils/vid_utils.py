@@ -254,6 +254,9 @@ def save_frames(input_path,
 
     nb_frames_vid = vid.get(cv2.CAP_PROP_FRAME_COUNT)
 
+    compression_level = 3
+    ext_params = [cv2.IMWRITE_PNG_COMPRESSION, compression_level]
+
     if last_frame is None:
         last_frame = int(nb_frames_vid)
 
@@ -270,9 +273,6 @@ def save_frames(input_path,
         if (idx % save_every) == 0:
 
             frame_vid = vid.retrieve()[1]
-
-            compression_level = 3
-            ext_params = [cv2.IMWRITE_PNG_COMPRESSION, compression_level]
 
             cv2.imwrite(
                 os.path.join(output_path, 'frame_{:04d}.png'.format(idx)), frame_vid, ext_params)

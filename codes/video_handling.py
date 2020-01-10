@@ -7,10 +7,10 @@ import time
 import warnings
 from enum import Enum
 
+import cv2
 import numpy as np
 from tqdm.autonotebook import tqdm
 
-import cv2
 from annotation import Annotation
 from utils.calibration import compute_cam_params, find_chessboard_kpts_video
 from utils.img_utils import add_bb_on_image
@@ -51,6 +51,42 @@ class videoObj:
         if self._annotation.parsed is False:
             self.parse_annotation()
         return self._annotation
+
+    def get_frame_annotations(self, frame_idx):
+        annotation = self.get_annotations()
+        annotation = annotation.annotation_dict
+        return annotation['frame_{:04d}'.format(frame_idx)]
+
+    def get_batch_annotations(self, batch_size=8):
+        annotation = self.get_annotations()
+        annotation = annotation.annotation_dict
+
+        batch_annotations = {}
+        # frame = 0
+
+        for k, v in annotation.items():
+
+            batch_annotations[k] = v
+
+            if len(batch_annotations) >= batch_size:
+                yield batch_annotations
+                batch_annotations = {}
+
+        # while frame < self.videoInfo.getNumberOfFrames():
+        #     batch_annotations = {}
+        #     for i in range(batch_size):
+
+        #         try:
+        #             batch_annotations['frame_{:04d}'.format(frame)] = annotation
+        #             ['frame_{:04d}'.format(frame)]
+
+        #         except KeyError:
+        #             print('Not found annotation for frame {:04d}'.format(frame))
+        #             break
+
+        #         frame += 1
+
+        #     yield batch_annotations
 
     def set_annotation(self, new_annotation):
         self._annotation = new_annotation
@@ -143,6 +179,46 @@ class videoObj:
 
         return frames
 
+    def get_batch_frames(self, batch_size=8):
+        """Returns a generator (np array of size NxHxWxC)
+        N- batch size (number of frames)
+        H- Height
+        W- Width
+        C- #Channels (BGR order)
+
+        Returns:
+            Tuple -- Returns a generator (np array of size NxHxWxC)
+        """
+
+        video_capture = cv2.VideoCapture(self.videopath)
+        nb_frames = self.videoInfo.getNumberOfFrames()
+
+        # check the number of batches
+        n_batches = int(np.ceil(nb_frames / batch_size))
+        print("{} batches of size {}".format(n_batches, batch_size))
+
+        # print a warning if last batch has different size
+        if (nb_frames % batch_size) != 0:
+            print('Warning: Last batch has different size')
+
+        ret = True
+
+        while ret is True:
+
+            frames = []
+
+            for i in range(batch_size):
+                ret, frame = video_capture.read()
+                if not ret:
+                    break
+                frames.append(frame)
+
+            batch = np.stack(np.array(frames), axis=0)
+
+            yield batch
+
+        # frames = np.stack([np.array(img) for (_, img) in video_capture.read()], axis=0)
+
     def play_video(self, show_bb=False):
 
         annot = self.get_annotations()
@@ -166,6 +242,7 @@ class videoObj:
         while ret is True:
 
             start_time = time.time()
+            key = cv2.waitKey(1) & 0xFF
 
             if show_bb:
 
@@ -177,15 +254,25 @@ class videoObj:
             delta_time = (time.time() - start_time) * 1000  # secs to ms
             wait_ms = wait_fraction - delta_time
 
+            # pause
+            if key == ord('p'):
+                while True:
+                    key2 = cv2.waitKey(1) or 0xFF
+                    cv2.imshow(self.videopath, frame)
+
+                    if key2 == ord('p'):
+                        break
+
             # Show frame
             cv2.imshow(self.videopath, frame)
             cv2.waitKey(int(wait_ms))  # in miliseconds
+            print(frame_idx)
 
             # read next frame
             ret, frame = video_capture.read()
             frame_idx += 1
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if key == ord('q'):
                 break
 
         video_capture.release()

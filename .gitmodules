@@ -1,0 +1,3 @@
+[submodule "codes/maskrcnn-benchmark"]
+	path = codes/maskrcnn-benchmark
+	url = git@github.com:wesleylp/maskrcnn-benchmark.git
