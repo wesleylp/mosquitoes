@@ -420,3 +420,5 @@ data/**/*
 classifiers/**/*
 results/**/*
 *.mat
+*.xls
+*.csv
