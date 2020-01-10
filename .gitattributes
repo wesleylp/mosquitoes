@@ -1,5 +1,5 @@
 #Removes cell's metadata and execution number
-notebooks/*.ipynb filter=nbstrip_basic
+*.ipynb filter=nbstrip_basic
 
 # Removes cells's output
-notebooks/*.ipynb filter=nbstrip_output
+# notebook/stuff.ipynb filter=nbstrip_output
