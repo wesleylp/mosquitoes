@@ -1,3 +1,6 @@
 [submodule "codes/maskrcnn-benchmark"]
 	path = codes/maskrcnn-benchmark
 	url = git@github.com:wesleylp/maskrcnn-benchmark.git
+[submodule "codes/detectron2"]
+	path = codes/detectron2
+	url = git@github.com:wesleylp/detectron2.git
