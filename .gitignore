@@ -422,3 +422,6 @@ results/**/*
 *.mat
 *.xls
 *.csv
+output
+output/**/*
+*.avi
