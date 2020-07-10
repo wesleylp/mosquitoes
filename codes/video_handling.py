@@ -39,6 +39,8 @@ class videoObj:
     def __init__(self, videopath, annotation_path=None):
 
         self.videopath = videopath
+        self.vid = cv2.VideoCapture(self.videopath)
+
         self.videoInfo = videoInfo(self.videopath)
 
         self._annotation = Annotation(
@@ -218,6 +220,14 @@ class videoObj:
             yield batch
 
         # frames = np.stack([np.array(img) for (_, img) in video_capture.read()], axis=0)
+
+    def frame_from_video(self):
+        while self.vid.isOpened():
+            success, frame = self.vid.read()
+            if success:
+                yield frame
+            else:
+                break
 
     def play_video(self, show_bb=False):
 
