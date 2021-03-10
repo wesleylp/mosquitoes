@@ -1,21 +1,28 @@
 import os
+from boxes import clip_box_to_image
 
 
 class Annotation:
-    def __init__(self, annotation_path=None, total_frames=None, encoding='ISO-8859-1'):
+    def __init__(self,
+                 annotation_path=None,
+                 total_frames=None,
+                 width_height=None,
+                 encoding='ISO-8859-1'):
         self.total_frames = total_frames
         self.annotation_path = annotation_path
         self.encoding = encoding
         self.annotation_dict = {}
         self.parsed = False
         self.error = False
+        self.width_height = width_height
 
     def _parse_file(self):
         if (self.annotation_path is None) or (os.path.exists(self.annotation_path) is False):
             return False
 
         # create dictonary with number of frames
-        self.annotation_dict = {'frame_{:04d}'.format(d): {} for d in range(self.total_frames)}
+        self.annotation_dict = {'frame_{:05d}'.format(d): {} for d in range(self.total_frames)}
+        self.objects = dict()
 
         # reading annotation file
         with open(self.annotation_path, encoding=self.encoding) as annotation_file:
@@ -28,6 +35,12 @@ class Annotation:
 
                 if 'NAME' in line:
                     object_name = line.strip().split(':', 1)[-1]
+
+                    if object_name not in self.objects.keys():
+                        self.objects[object_name] = dict()
+                        self.objects[object_name]['boxes'] = []
+                        self.objects[object_name]['frames'] = []
+
                     continue
 
                 if 'RECT' in line:
@@ -36,7 +49,13 @@ class Annotation:
                     frame_idx = int(frame[1])
                     bb = [int(frame[p]) for p in list(range(2, 6))]
 
-                    self.annotation_dict['frame_{:04d}'.format(frame_idx)][object_name] = bb
+                    # if self.width_height is not None:
+                    #     bb = clip_box_to_image(bb, self.width_height[1], self.width_height[0])
+
+                    self.annotation_dict['frame_{:05d}'.format(frame_idx)][object_name] = bb
+                    self.objects[object_name]['boxes'].append(bb)
+                    self.objects[object_name]['frames'].append(frame_idx)
+
                     continue
         annotation_file.close()
 
@@ -52,7 +71,14 @@ class Annotation:
             return self.error
 
     def get_annoted_frame(self, frame_idx):
-        return self.annotation_dict['frame_{:04d}'.format(frame_idx)]
+        return self.annotation_dict['frame_{:05d}'.format(frame_idx)]
+
+    def filter_objects(self, objects):
+
+        return {
+            obj_tag: bb
+            for obj_tag, bb in self.objects.items() if obj_tag.split('-')[0] in objects
+        }
 
 
 class AnnotationImage(object):
@@ -70,7 +96,7 @@ class AnnotationImage(object):
             return False
 
         # create dictonary with number of frames
-        # self.annotation_dict = {'frame_{:04d}'.format(d): {} for d in range(self.total_frames)}
+        # self.annotation_dict = {'frame_{:05d}'.format(d): {} for d in range(self.total_frames)}
 
         # reading annotation file
         with open(self.annotation_path, encoding=self.encoding) as annotation_file:

@@ -7,17 +7,20 @@ import cv2
 import numpy as np
 
 from detectron2.config import get_cfg
-from detectron2.data import (DatasetCatalog, MetadataCatalog,
-                             build_detection_test_loader)
+from detectron2.data import (DatasetCatalog, MetadataCatalog, build_detection_test_loader)
 from detectron2.data.datasets import register_coco_instances
 from detectron2.engine import DefaultTrainer
-from detectron2.evaluation import COCOEvaluator, inference_on_dataset
+from detectron2.evaluation import (COCOEvaluator, DatasetEvaluators, inference_on_dataset)
 from detectron2.utils.logger import setup_logger
 from detectron2.utils.visualizer import Visualizer
+from lossEvalHooker import MyTrainer
+from utils.evaluation import CfnMat
+from utils.register_datasets import register_mosquitoes
 
 
 def train(cfg):
 
+    # trainer = MyTrainer(cfg)
     trainer = DefaultTrainer(cfg)
     trainer.resume_or_load(resume=False)
     trainer.train()
@@ -28,10 +31,8 @@ def train(cfg):
 if __name__ == "__main__":
 
     this_filepath = os.path.dirname(os.path.abspath(__file__))
-
     config_default = os.path.join(this_filepath, "configs", "mosquitoes",
                                   "faster_rcnn_R_50_C4_1x.yaml")
-
     data_dir_default = os.path.join(this_filepath, '..', 'data', '_under_construction')
 
     parser = argparse.ArgumentParser(description="MBG Training")
@@ -40,37 +41,33 @@ if __name__ == "__main__":
                         metavar="FILE",
                         help="path to config file")
     parser.add_argument("--data-dir", default=data_dir_default, metavar="FILE", help="path to data")
+    parser.add_argument("--data-train", default="mbg_train", metavar="FILE", help="path to data")
+
+    parser.add_argument("--data-test", default="mbg_test", metavar="FILE", help="path to data")
+    parser.add_argument("--weights", default=None, help="path to model weights")
+    parser.add_argument("--iters", default=10000, help="Max number of iterations")
 
     args = parser.parse_args()
 
     cfg = get_cfg()
-
     config_file = args.config_file
-
     cfg.merge_from_file(config_file)
 
-    os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
+    # os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
+    # setup_logger(cfg.OUTPUT_DIR)
 
+    # register datasets
+    register_mosquitoes()
+
+    cfg.OUTPUT_DIR = os.path.join(cfg.OUTPUT_DIR, args.data_train)
+
+    os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     setup_logger(cfg.OUTPUT_DIR)
 
-    for d in ["Train", "Test"]:
-        register_coco_instances(f"mbg_{d.lower()}", {},
-                                os.path.join(args.data_dir, f"coco_format_{d}.json"),
-                                os.path.join(args.data_dir, d))
+    cfg.DATASETS.TRAIN = (args.data_train, )
+    cfg.DATASETS.TEST = ()  # ("mbg_test", )  # no metrics implemented for this dataset
+    cfg.TEST.EVAL_PERIOD = 0  # 100
 
-        MetadataCatalog.get(f"mbg_{d.lower()}").set(thing_classes=[
-            'tire',
-            # 'pool',
-            # 'bucket',
-            # 'water_tank',
-            # 'puddle',
-            # 'bottle',
-        ])
-
-        cdc_metadata = MetadataCatalog.get(f"mbg_{d.lower()}")
-
-    cfg.DATASETS.TRAIN = ("mbg_train", )
-    cfg.DATASETS.TEST = ()  # no metrics implemented for this dataset
     cfg.DATALOADER.NUM_WORKERS = 4
 
     cfg.MODEL.RPN.PRE_NMS_TOPK_TRAIN = 600
@@ -81,22 +78,34 @@ if __name__ == "__main__":
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 32
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
 
-    cfg.SOLVER.BASE_LR = 0.005
+    cfg.SOLVER.BASE_LR = 0.002
     cfg.SOLVER.WEIGHT_DECAY = 0.0001
-    cfg.SOLVER.MAX_ITER = 10000  #18000
+    cfg.SOLVER.MAX_ITER = int(args.iters)  #18000
     cfg.SOLVER.STEPS = (6000, 8000)  #(12000, 16000)
     cfg.SOLVER.IMS_PER_BATCH = 4
 
+    if args.weights is not None:
+        cfg.MODEL.WEIGHTS = args.weights
+
     trainer = train(cfg)
 
-    evaluator = COCOEvaluator("mbg_train", cfg, False, output_dir=cfg.OUTPUT_DIR)
-    val_loader = build_detection_test_loader(cfg, "mbg_train")
-    inference_on_dataset(trainer.model, val_loader, evaluator)
+    # eval model
+    cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
+    # trainer = MyTrainer(cfg)
+    trainer = DefaultTrainer(cfg)
+    trainer.resume_or_load(resume=False)
+
+    evaluator = COCOEvaluator(args.data_train, cfg, False, output_dir=cfg.OUTPUT_DIR)
+    val_loader = build_detection_test_loader(cfg, args.data_train)
+    cfn_mat = CfnMat(args.data_train, output_dir=cfg.OUTPUT_DIR)
+
+    inference_on_dataset(trainer.model, val_loader, DatasetEvaluators([evaluator, cfn_mat]))
 
     # evaluator = COCOEvaluator("mbg_valid", cfg, False, output_dir=cfg.OUTPUT_DIR)
     # val_loader = build_detection_test_loader(cfg, "mbg_valid")
     # inference_on_dataset(trainer.model, val_loader, evaluator)
 
-    evaluator = COCOEvaluator("mbg_test", cfg, False, output_dir=cfg.OUTPUT_DIR)
-    val_loader = build_detection_test_loader(cfg, "mbg_test")
-    inference_on_dataset(trainer.model, val_loader, evaluator)
+    evaluator = COCOEvaluator(args.data_test, cfg, False, output_dir=cfg.OUTPUT_DIR)
+    val_loader = build_detection_test_loader(cfg, args.data_test)
+    cfn_mat = CfnMat(args.data_test, output_dir=cfg.OUTPUT_DIR)
+    inference_on_dataset(trainer.model, val_loader, DatasetEvaluators([evaluator, cfn_mat]))

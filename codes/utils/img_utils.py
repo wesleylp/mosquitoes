@@ -22,13 +22,13 @@ def add_bb_on_image(image, bounding_box, color=(255, 0, 0), thickness=5, label=N
     # font_thickness = 1
 
     # bb limits
-    x_i = bounding_box[0]
-    y_i = bounding_box[1]
-    x_o = bounding_box[2]
-    y_o = bounding_box[3]
+    x_i = int(bounding_box[0])
+    y_i = int(bounding_box[1])
+    x_o = int(bounding_box[2])
+    y_o = int(bounding_box[3])
 
     # draw bounding box
-    cv2.rectangle(image, (x_i, y_i), (x_o, y_o), (b, g, r), thickness)
+    image = cv2.rectangle(image, (x_i, y_i), (x_o, y_o), color=(b, g, r), thickness=thickness)
 
     # TODO: put text
     if label is not None:
@@ -40,7 +40,7 @@ def add_bboxes_on_image(image, bboxes, color=(255, 0, 0), thickness=5, label=Non
     if isinstance(bboxes, Boxes):
         bboxes = bboxes.tensor
 
-    if isinstance(bboxes, (np.ndarray, torch.Tensor)):
+    if isinstance(bboxes, (np.ndarray, torch.Tensor, list)):
         for idx in range(len(bboxes)):
             image = add_bb_on_image(image, bboxes[idx], color, thickness)
         return image
