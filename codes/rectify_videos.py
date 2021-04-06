@@ -65,7 +65,7 @@ if __name__ == '__main__':
                     print('Rectifying video {} ...'.format(video_mission))
 
                     video_name = os.path.split(video_mission)[-1]
-                    video_rectified_name = 'rectfied_' + video_name
+                    video_rectified_name = 'rectified_' + video_name
                     output_path = os.path.join(missions_path, video_rectified_name)
 
                     rectify_video(video_mission, output_path, cam_params, maps, quality)
