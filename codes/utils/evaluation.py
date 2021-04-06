@@ -11,6 +11,8 @@ from detectron2.data import MetadataCatalog
 from detectron2.data.datasets.coco import convert_to_coco_json
 from detectron2.evaluation import DatasetEvaluator
 from detectron2.structures.boxes import Boxes, BoxMode, pairwise_iou
+from detectron2.structures.instances import Instances
+from detectron2.utils.logger import create_small_table
 
 
 class CfnMat(DatasetEvaluator):
@@ -53,6 +55,7 @@ class CfnMat(DatasetEvaluator):
     def evaluate(self):
 
         self._logger.info("Evaluating confusion matrix ...")
+        print("Evaluating confusion matrix ...")
         imgs_errors = []
 
         for pred in self._predictions:
@@ -87,14 +90,35 @@ class CfnMat(DatasetEvaluator):
             self.fp += fp
             self.fn += fn
 
+        # self.precision = self.tp / (self.tp + self.fp)
+        # self.recall = self.tp / (self.tp + self.fn)
+        # self.f1 = 2 * self.precision * self.recall / (self.precision + self.recall)
+
+        res = {
+            "tp": self.tp,
+            "fp": self.fp,
+            "fn": self.fn,
+            "tn": self.tn,
+            # "P": self.precision,
+            # "R": self.recall,
+            # "F1": self.f1,
+        }
+
+        self._logger.info("Confusion matrix metrics: \n" + create_small_table(res))
+        print("Confusion matrix metrics: \n" + create_small_table(res))
+
+        self._logger.info("Images with errors: ")
+        print("Images with errors: ")
+
         for img_errors in imgs_errors:
+            self._logger.info("{}".format(img_errors))
             print(img_errors)
 
-        print("True positive:{} ".format(self.tp))
-        print("False positive: {} ".format(self.fp))
-        print("False negative: {} ".format(self.fn))
+        # print("True positive:{} ".format(self.tp))
+        # print("False positive: {} ".format(self.fp))
+        # print("False negative: {} ".format(self.fn))
 
-        return {"tp": self.tp, "fp": self.fp, "fn": self.fn, "tn": self.tn}
+        return res
 
     def _cnf_mat(self, pred, gt, thr=0.5):
         gt_overlaps = torch.zeros(len(gt))

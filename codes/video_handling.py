@@ -35,7 +35,6 @@ class videoObj:
     """videoObj class contains important information all important methods and
     tools to access database videos.
     """
-
     def __init__(self, videopath, annotation_path=None):
 
         self.videopath = videopath
@@ -43,8 +42,9 @@ class videoObj:
 
         self.videoInfo = videoInfo(self.videopath)
 
-        self._annotation = Annotation(
-            annotation_path=annotation_path, total_frames=self.videoInfo.getNumberOfFrames())
+        self._annotation = Annotation(annotation_path=annotation_path,
+                                      width_height=self.videoInfo.getWidthHeight(),
+                                      total_frames=self.videoInfo.getNumberOfFrames())
 
     def parse_annotation(self):
         return self._annotation._parse_file()
@@ -54,10 +54,18 @@ class videoObj:
             self.parse_annotation()
         return self._annotation
 
-    def get_frame_annotations(self, frame_idx):
+    def get_frame_annotations(self, frame_idx, objects=None):
         annotation = self.get_annotations()
         annotation = annotation.annotation_dict
-        return annotation['frame_{:04d}'.format(frame_idx)]
+        frame_annot = annotation['frame_{:05d}'.format(frame_idx)]
+
+        if objects is not None:
+            return self.__filter_objects(frame_annot, objects)
+
+        return frame_annot
+
+    def __filter_objects(self, annots, objects):
+        return {obj_tag: bb for obj_tag, bb in annots.items() if obj_tag.split('-')[0] in objects}
 
     def get_batch_annotations(self, batch_size=8):
         annotation = self.get_annotations()
@@ -79,11 +87,11 @@ class videoObj:
         #     for i in range(batch_size):
 
         #         try:
-        #             batch_annotations['frame_{:04d}'.format(frame)] = annotation
-        #             ['frame_{:04d}'.format(frame)]
+        #             batch_annotations['frame_{:05d}'.format(frame)] = annotation
+        #             ['frame_{:05d}'.format(frame)]
 
         #         except KeyError:
-        #             print('Not found annotation for frame {:04d}'.format(frame))
+        #             print('Not found annotation for frame {:05d}'.format(frame))
         #             break
 
         #         frame += 1
@@ -317,7 +325,7 @@ class videoObj:
                 for object_name, bb in frame_annot.items():
                     frame = add_bb_on_image(frame, bb, label=object_name)
 
-            cv2.imshow('Frame{:04d}'.format(frame_idx), frame)
+            cv2.imshow('Frame{:05d}'.format(frame_idx), frame)
 
             wkey = cv2.waitKey(0)
             key = chr(wkey % 256)
@@ -400,7 +408,7 @@ class videoObj:
             ext_params = [cv2.IMWRITE_PXM_BINARY, int(binary_format)]
 
         # output file name format
-        filename_format = '/{prefix}{{:04d}}.{ext}'
+        filename_format = '/{prefix}{{:05d}}.{ext}'
         output_path_str = output_folder + filename_format.format(prefix=filename_prefix, ext=ext)
 
         if last_frame is None:
@@ -473,7 +481,6 @@ class videoInfo(object):
     strongly based on:
     https://github.com/rafaelpadilla/DeepLearning-VDAO/blob/master/VDAO_Access/VDAOHelper.py
     """
-
     def __init__(self, video_file):
         # class constructor
         self._filePath = video_file

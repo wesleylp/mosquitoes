@@ -9,6 +9,7 @@ from detectron2.engine import DefaultTrainer
 from detectron2.evaluation import (COCOEvaluator, DatasetEvaluators, inference_on_dataset)
 from detectron2.utils.logger import setup_logger
 from utils.evaluation import CfnMat
+from utils.register_datasets import register_mosquitoes
 
 # import random
 
@@ -26,9 +27,17 @@ if __name__ == "__main__":
     data_dir_default = os.path.join(this_filepath, '..', 'data', '_under_construction')
 
     parser = argparse.ArgumentParser(description="MBG Eval")
-    parser.add_argument(
-        "--config-file", default=config_default, metavar="FILE", help="path to config file")
+    parser.add_argument("--config-file",
+                        default=config_default,
+                        metavar="FILE",
+                        help="path to config file")
     parser.add_argument("--data-dir", default=data_dir_default, metavar="FILE", help="path to data")
+    parser.add_argument("--data-train",
+                        default="mbg_fold0_set_2",
+                        metavar="FILE",
+                        help="path to data")
+
+    parser.add_argument("--data-test", default="mbg_test", metavar="FILE", help="path to data")
 
     args = parser.parse_args()
 
@@ -38,27 +47,15 @@ if __name__ == "__main__":
 
     cfg.merge_from_file(config_file)
 
+    # register mosquitoes datasets
+    register_mosquitoes()
+
+    cfg.OUTPUT_DIR = os.path.join(cfg.OUTPUT_DIR, args.data_train)
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
 
     setup_logger(cfg.OUTPUT_DIR)
 
-    for d in ["Train", "Test"]:
-        register_coco_instances(f"mbg_{d.lower()}", {},
-                                os.path.join(args.data_dir, f"coco_format_{d}.json"),
-                                os.path.join(args.data_dir, d))
-
-        MetadataCatalog.get(f"mbg_{d.lower()}").set(thing_classes=[
-            'tire',
-            # 'pool',
-            # 'bucket',
-            # 'water_tank',
-            # 'puddle',
-            # 'bottle',
-        ])
-
-        cdc_metadata = MetadataCatalog.get(f"mbg_{d.lower()}")
-
-    cfg.DATASETS.TRAIN = ("mbg_train", )
+    cfg.DATASETS.TRAIN = (args.data_train, )
     cfg.DATASETS.TEST = ()
     cfg.DATALOADER.NUM_WORKERS = 4
 
@@ -83,8 +80,8 @@ if __name__ == "__main__":
     trainer = DefaultTrainer(cfg)
     trainer.resume_or_load(resume=False)
 
-    val_loader = build_detection_test_loader(cfg, "mbg_test")
-    evaluator = COCOEvaluator("mbg_test", cfg, False, output_dir=cfg.OUTPUT_DIR)
-    cfn_mat = CfnMat("mbg_test", output_dir=cfg.OUTPUT_DIR)
+    val_loader = build_detection_test_loader(cfg, args.data_test)
+    evaluator = COCOEvaluator(args.data_test, cfg, False, output_dir=cfg.OUTPUT_DIR)
+    cfn_mat = CfnMat(args.data_test, output_dir=cfg.OUTPUT_DIR)
 
     inference_on_dataset(trainer.model, val_loader, DatasetEvaluators([evaluator, cfn_mat]))
