@@ -8,13 +8,12 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Save videos frames.')
 
-    parser.add_argument(
-        '--datapath',
-        type=str,
-        default='../data/_under_construction',
-        help='Data path of videos to extract frames from.')
+    parser.add_argument('--datapath',
+                        type=str,
+                        default='../data/_under_construction',
+                        help='Data path of videos to extract frames from.')
 
-    parser.add_argument('--save_every', type=int, default=50, help='Number of frames to skip.')
+    parser.add_argument('--save_every', type=int, default=24, help='Number of frames to skip.')
 
     args = parser.parse_args()
 

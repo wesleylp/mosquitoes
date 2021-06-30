@@ -12,6 +12,7 @@ import numpy as np
 from tqdm.autonotebook import tqdm
 
 from annotation import Annotation
+from cvat_annotation import CVATAnnotation
 from utils.calibration import compute_cam_params, find_chessboard_kpts_video
 from utils.img_utils import add_bb_on_image
 
@@ -42,9 +43,15 @@ class videoObj:
 
         self.videoInfo = videoInfo(self.videopath)
 
-        self._annotation = Annotation(annotation_path=annotation_path,
-                                      width_height=self.videoInfo.getWidthHeight(),
-                                      total_frames=self.videoInfo.getNumberOfFrames())
+        if annotation_path is not None and annotation_path.endswith('.xml'):
+            _annotation = CVATAnnotation
+
+        else:
+            _annotation = Annotation
+
+        self._annotation = _annotation(annotation_path=annotation_path,
+                                       width_height=self.videoInfo.getWidthHeight(),
+                                       total_frames=self.videoInfo.getNumberOfFrames())
 
     def parse_annotation(self):
         return self._annotation._parse_file()

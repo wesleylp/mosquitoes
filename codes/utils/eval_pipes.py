@@ -101,7 +101,7 @@ class PipesEval(DatasetEvaluator):
             "tp": self.nb_tp,
             "fp": self.nb_fp,
             "fn": self.nb_fn,
-            'precision': self.nb_tp / (self.nb_tp + self.nb_fp),
+            'precision': self.nb_tp / (self.nb_tp + self.nb_fp + 1e-16),
             'recall': self.nb_tp / (self.nb_tp + self.nb_fn)
         }
 

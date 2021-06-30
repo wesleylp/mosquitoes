@@ -13,6 +13,9 @@ from detectron2.evaluation import DatasetEvaluator
 from detectron2.structures.boxes import Boxes, BoxMode, pairwise_iou
 from detectron2.structures.instances import Instances
 from detectron2.utils.logger import create_small_table
+from detectron2.modeling.roi_heads.fast_rcnn import fast_rcnn_inference_single_image
+from .img_utils import is_on_margin
+import numpy as np
 
 
 class CfnMat(DatasetEvaluator):
@@ -153,3 +156,123 @@ class CfnMat(DatasetEvaluator):
         assert fn >= 0
 
         return tp, fp, fn
+
+
+def filter_preds_score_image(instances: Instances, score_thresh: float):
+
+    boxes = instances.get('pred_boxes').tensor
+    scores = instances.get('scores')
+    pred_classes = instances.get('pred_classes')
+    image_shape = instances.image_size
+
+    # filtering out low-confidence detections.
+    filter_mask = scores >= score_thresh  # R x K
+    # filter_inds = filter_mask.nonzero()
+
+    boxes = boxes[filter_mask]
+    scores = scores[filter_mask]
+    pred_classes = pred_classes[filter_mask]
+
+    result = Instances(image_shape)
+    result.pred_boxes = Boxes(boxes)
+    result.scores = scores
+    result.pred_classes = pred_classes
+
+    # result, filter_inds = fast_rcnn_inference_single_image(boxes, scores, image_shape, score_thresh,
+    #                                                        nms_thresh, topk_per_image)
+
+    return result
+
+
+def filter_preds_score_video(preds: dict, score_thresh: float):
+    preds = {
+        frame: {
+            'instances': filter_preds_score_image(
+                preds[frame]['instances'],
+                score_thresh,
+            )
+        }
+        for frame in preds.keys()
+    }
+
+    return preds
+
+
+def filter_preds_margin_image(instances: Instances, margin_size: tuple):
+    boxes = instances.get('pred_boxes').tensor
+    scores = instances.get('scores')
+    pred_classes = instances.get('pred_classes')
+    image_shape = instances.image_size
+
+    filter_mask = [is_on_margin(box, image_shape, margin_size) for box in boxes]
+
+    if any(filter_mask):
+        print('entrou aqui!')
+
+    # actualy I want to keep boxes that are not in the margin
+    filter_mask = [not elem for elem in filter_mask]
+
+    boxes = boxes[filter_mask]
+    scores = scores[filter_mask]
+    pred_classes = pred_classes[filter_mask]
+
+    result = Instances(image_shape)
+    result.pred_boxes = Boxes(boxes)
+    result.scores = scores
+    result.pred_classes = pred_classes
+
+    return result
+
+
+def filter_preds_margin_video(preds: dict, margin_size: tuple):
+    preds = {
+        frame: {
+            'instances': filter_preds_margin_image(
+                preds[frame]['instances'],
+                margin_size,
+            )
+        }
+        for frame in preds.keys()
+    }
+
+    return preds
+
+
+def filter_gt_margin_image(object: dict, img_size: tuple, margin_size: tuple):
+
+    new_object = {
+        obj: box
+        for obj, box in object.items() if not (is_on_margin(box, img_size, margin_size))
+    }
+
+    return new_object
+
+
+def filter_annot_margin_image(object: dict, img_size: tuple, margin_size: tuple):
+    boxes = object['boxes']
+    frames = object['frames']
+
+    filter_mask = [is_on_margin(box, img_size, margin_size) for box in boxes]
+    # actualy I want to keep boxes that are not in the margin
+    filter_mask = [not elem for elem in filter_mask]
+    filter_mask = np.where(filter_mask)[0]
+
+    new_boxes = [boxes[n] for n in filter_mask]
+    new_frames = [frames[n] for n in filter_mask]
+
+    result = {'boxes': new_boxes, 'frames': new_frames}
+
+    return result
+
+
+def filter_annot_margin_video(annot: dict, img_size: tuple, margin_size: tuple):
+    annot = {
+        obj: filter_annot_margin_image(
+            annot[obj],
+            img_size,
+            margin_size,
+        )
+        for obj in annot.keys()
+    }
+
+    return annot

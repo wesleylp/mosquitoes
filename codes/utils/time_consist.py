@@ -521,7 +521,7 @@ def pipe_to_frame_instances(preds, vid):
                 # print(frame_idx, len(frame_instances))
 
         if len(frame_instances) == 0:
-            frame_instances = Instances(conn[0].image_size)
+            frame_instances = Instances((2160, 3840))
             frame_instances.set('pred_boxes',
                                 Boxes(torch.empty(0, 4, dtype=torch.float32, device='cuda')))
             frame_instances.set('scores', torch.empty(0, dtype=torch.float32, device='cuda'))

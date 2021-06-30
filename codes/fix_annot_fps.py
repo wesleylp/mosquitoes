@@ -4,9 +4,9 @@ from math import ceil
 This code was used to fix annotations when we changed the videos fps to 24fps.
 """
 
-video_name = '20181112_rectified_DJI_0043'
+video_name = 'deleteme'
 
-filename = f'/home/wesley/Downloads/anotacao/{video_name}.xml'
+filename = f'/home/wesley.passos/repos/mosquitoes-wes/data/v1.0/annotation/{video_name}.xml'
 
 tree = ET.parse(filename)
 root = tree.getroot()
@@ -37,5 +37,7 @@ for track in tracks:
     boxes = track.findall('box')
     boxes[-1].set("outside", "1")
 
-tree.write(
-    f'{video_name}_fps.xml', encoding="utf-8", xml_declaration=True, short_empty_elements=False)
+# tree.write(f'{video_name}_fps.xml',
+#            encoding="utf-8",
+#            xml_declaration=True,
+#            short_empty_elements=False)

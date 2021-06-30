@@ -22,9 +22,9 @@ if __name__ == "__main__":
 
     this_filepath = os.path.dirname(os.path.abspath(__file__))
     config_default = os.path.join(this_filepath, "configs", "mosquitoes",
-                                  "faster_rcnn_R_50_C4_1x.yaml")
+                                  "faster_rcnn_R_50_FPN_1x.yaml")
 
-    data_dir_default = os.path.join(this_filepath, '..', 'data', '_under_construction')
+    data_dir_default = os.path.join(this_filepath, '..', 'data', 'v1')
 
     parser = argparse.ArgumentParser(description="MBG Eval")
     parser.add_argument("--config-file",
@@ -33,11 +33,14 @@ if __name__ == "__main__":
                         help="path to config file")
     parser.add_argument("--data-dir", default=data_dir_default, metavar="FILE", help="path to data")
     parser.add_argument("--data-train",
-                        default="mbg_fold0_set_2",
+                        default="mbg_fold0_train_watertank",
                         metavar="FILE",
                         help="path to data")
 
-    parser.add_argument("--data-test", default="mbg_test", metavar="FILE", help="path to data")
+    parser.add_argument("--data-test",
+                        default="mbg_fold0_train_watertank",
+                        metavar="FILE",
+                        help="path to data")
 
     args = parser.parse_args()
 
@@ -76,12 +79,16 @@ if __name__ == "__main__":
     # cfg.MODEL.DEVICE = "cpu"
 
     cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.05  # set the testing
 
     trainer = DefaultTrainer(cfg)
     trainer.resume_or_load(resume=False)
 
     val_loader = build_detection_test_loader(cfg, args.data_test)
-    evaluator = COCOEvaluator(args.data_test, cfg, False, output_dir=cfg.OUTPUT_DIR)
+    evaluator = COCOEvaluator(args.data_test,
+                              cfg,
+                              False,
+                              output_dir=os.path.join(cfg.OUTPUT_DIR, args.data_test))
     cfn_mat = CfnMat(args.data_test, output_dir=cfg.OUTPUT_DIR)
 
     inference_on_dataset(trainer.model, val_loader, DatasetEvaluators([evaluator, cfn_mat]))

@@ -161,3 +161,38 @@ def scale_img(src, scale):
     new_h = int(src.shape[0] * scale)
 
     return cv2.resize(src, (new_w, new_h))
+
+
+def is_on_margin(box, img_size, margin_size):
+    """Check if a box is in a margin of size `margin_size`.
+
+    Args:
+        box (list): containing box dimensions (x,y,x,y)
+        img_size (tuple): image size (h,w)
+        margin_size (tuple): margin size (h,w)
+    """
+    h_margin, w_margin = margin_size
+    h_img, w_img = img_size
+
+    x_tl = box[0]
+    y_tl = box[1]
+    x_br = box[2]
+    y_br = box[3]
+
+    # check if is in right margin
+    if x_tl > (w_img - w_margin):
+        return True
+
+    # check if is in left margin
+    if x_br < (w_margin):
+        return True
+
+    # check if is in bottom margin
+    if y_tl > (h_img - h_margin):
+        return True
+
+    # check if is in top margin
+    if y_br < (h_margin):
+        return True
+
+    return False
