@@ -329,6 +329,8 @@ if __name__ == "__main__":
 
             evaluators.reset()
             evaluators_time.reset()
+            os.remove(valid_data)
+
             print('Computing results...')
             for idx, inputs in enumerate(val_loader):
                 outputs = out[idx]
