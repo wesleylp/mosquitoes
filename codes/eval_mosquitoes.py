@@ -78,7 +78,11 @@ if __name__ == "__main__":
     cfg.SOLVER.IMS_PER_BATCH = 4
 
     # cfg.MODEL.DEVICE = "cpu"
-    model_iter = f"{int(args.model_iter):07d}"
+    try:
+        model_iter = f"{int(args.model_iter):07d}"
+    except ValueError:
+        model_iter = args.model_iter
+
     obj = args.data_test.split('_')[-1]
     model_name = os.path.splitext(os.path.basename(args.config_file))[0]
     cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, f"model_{model_iter}.pth")
@@ -98,6 +102,7 @@ if __name__ == "__main__":
     res = init_res_dict()
 
     scores = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
+    # scores = [0.9]
 
     for score in scores:
 
@@ -137,5 +142,6 @@ if __name__ == "__main__":
 
     save_results_dir = os.path.dirname(cfg.MODEL.WEIGHTS)
     name_base = f'{obj}_{model_name}_model_{model_iter}_{args.data_test.split("_")[-2]}'
+    print(df)
 
     df.to_csv(os.path.join(save_results_dir, name_base + '.csv'))

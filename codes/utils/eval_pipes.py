@@ -102,7 +102,7 @@ class PipesEval(DatasetEvaluator):
             "fp": self.nb_fp,
             "fn": self.nb_fn,
             'precision': self.nb_tp / (self.nb_tp + self.nb_fp + 1e-16),
-            'recall': self.nb_tp / (self.nb_tp + self.nb_fn)
+            'recall': self.nb_tp / (self.nb_tp + self.nb_fn + 1e-16)
         }
 
         self._logger.info("Pipe Confusion matrix metrics: \n" + create_small_table(res))

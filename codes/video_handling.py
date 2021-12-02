@@ -11,10 +11,10 @@ import cv2
 import numpy as np
 from tqdm.autonotebook import tqdm
 
-from annotation import Annotation
-from cvat_annotation import CVATAnnotation
-from utils.calibration import compute_cam_params, find_chessboard_kpts_video
-from utils.img_utils import add_bb_on_image
+from .annotation import Annotation
+from .cvat_annotation import CVATAnnotation
+from .utils.calibration import compute_cam_params, find_chessboard_kpts_video
+from .utils.img_utils import add_bb_on_image
 
 warnings.filterwarnings("ignore")
 
@@ -118,8 +118,7 @@ class videoObj:
             frame_req {int} -- [Requested frame number to be returned]
 
         Keyword Arguments:
-            raiseException {bool} -- [Flag to raise an exception] (default: {True})
-
+            rais%
         Returns:
             (ret, frame, frame_size) --
                 ret {bool}: whether the frame was read or not,

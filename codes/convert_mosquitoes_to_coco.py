@@ -5,7 +5,7 @@ import os
 import sys
 from itertools import product
 from detectron2 import data
-
+import re
 import numpy as np
 import pandas as pd
 from PIL import Image
@@ -103,7 +103,7 @@ def parse_args():
 
     parser.add_argument('--datadir',
                         help="data dir for annotations to be converted",
-                        default=os.path.join(this_filedir, '../data/v1'),
+                        default=os.path.join(this_filedir, '../data/v1/frames'),
                         type=str)
 
     parser.add_argument('--file_set',
@@ -147,8 +147,8 @@ def convert_mosquitoes_instance_only(data_dir, ann_dir, annotator, out_dir, file
         df_set = {0: pd.read_csv(file_set)}
 
     mask = df_set[0]['test'] == True
-    videos_train_val = df_set[0][~mask]['Video'].tolist()
-    videos_test = df_set[0][mask]['Video'].tolist()
+    videos_train_val = df_set[0][~mask]['seq'].tolist()
+    videos_test = df_set[0][mask]['seq'].tolist()
 
     sets = [f'train{n}' for n in np.arange(len(videos_train_val))]
     sets += [f'val{n}' for n in np.arange(len(videos_train_val))]
@@ -157,6 +157,7 @@ def convert_mosquitoes_instance_only(data_dir, ann_dir, annotator, out_dir, file
     annot_stats = {}
 
     # for fold, data_set in tqdm(sets):
+    r = re.compile(r'\d{8}_rectified_DJI_\d{4}')
     for data_set in tqdm(sets):
         print(f'Starting {data_set}')
 
@@ -191,11 +192,18 @@ def convert_mosquitoes_instance_only(data_dir, ann_dir, annotator, out_dir, file
             print(dirpath)
             for filename in filenames:
                 if filename.lower().endswith(('.png')):
-                    img_name_short = os.path.join(os.path.split(dirpath)[-1], filename)
+
+                    # this piece of code changes the video name in the format 'YYYYMMDD_DJI_XXXX'
+                    # to 'videoNN' as used in paper
+                    if r.match(video_name) is not None:
+                        video_name = df_set[0][df_set[0]["Video"] == video_name]['seq'].tolist()[0]
+
+                    img_name_short = os.path.join(video_name, filename)
                     img_name = os.path.join(dirpath, filename)
 
                     width, height = get_img_size(img_name)
                     bboxes = get_groundtruth(img_name, ann_dir, annotator)
+
                     ann_dict.update(img_name_short, width, height, bboxes)
         ann_dict.export(os.path.join(out_dir, json_name % data_set))
 

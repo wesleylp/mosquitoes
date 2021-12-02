@@ -13,6 +13,7 @@ from detectron2.engine import DefaultTrainer
 from detectron2.engine.hooks import HookBase, PeriodicWriter
 from detectron2.evaluation import COCOEvaluator, inference_context
 from detectron2.utils.logger import log_every_n_seconds
+import nni
 
 
 class LossEvalHook(HookBase):
@@ -150,6 +151,11 @@ class ValidationLoss(HookBase):
             losses_reduced = sum(loss for loss in loss_dict_reduced.values())
             if comm.is_main_process():
                 self.trainer.storage.put_scalars(total_val_loss=losses_reduced, **loss_dict_reduced)
+
+            nni.report_intermediate_result(losses_reduced)
+
+    def after_train(self):
+        nni.report_final_result(self.trainer.storage.latest()["total_val_loss"][0])
 
 
 class SaveModel(HookBase):

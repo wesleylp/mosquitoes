@@ -1,6 +1,7 @@
 import argparse
+from ast import arg
 from mlflow import log_metrics, log_param, log_artifact
-
+import logging
 import json
 import os
 import random
@@ -19,25 +20,17 @@ from detectron2.utils.visualizer import Visualizer
 from lossEvalHooker import MyTrainer2 as MyTrainer
 from utils.evaluation import CfnMat
 from utils.register_datasets import register_mosquitoes
+import nni
+
+this_filepath = os.path.dirname(os.path.abspath(__file__))
+config_default = os.path.join(this_filepath, "configs", "mosquitoes",
+                              "faster_rcnn_R_50_FPN_1x.yaml")
+data_dir_default = os.path.join(this_filepath, '..', 'data', '_under_construction')
+
+logger = logging.getLogger('lm')
 
 
-def train(cfg, resume=False):
-
-    trainer = MyTrainer(cfg)
-    # trainer = DefaultTrainer(cfg)
-    trainer.resume_or_load(resume=resume)
-    trainer.train()
-
-    return trainer
-
-
-if __name__ == "__main__":
-
-    this_filepath = os.path.dirname(os.path.abspath(__file__))
-    config_default = os.path.join(this_filepath, "configs", "mosquitoes",
-                                  "faster_rcnn_R_50_FPN_1x.yaml")
-    data_dir_default = os.path.join(this_filepath, '..', 'data', '_under_construction')
-
+def run_args():
     parser = argparse.ArgumentParser(description="MBG Training")
     parser.add_argument("--config-file",
                         default=config_default,
@@ -58,6 +51,33 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    return args
+
+
+def train(cfg, resume=False):
+
+    trainer = MyTrainer(cfg)
+    # trainer = DefaultTrainer(cfg)
+    trainer.resume_or_load(resume=resume)
+    trainer.train()
+
+    return trainer
+
+
+if __name__ == "__main__":
+
+    tuner_args = nni.get_next_parameter()
+
+    args = run_args()
+
+    # args.update(tuner_args)
+
+    # args = argparse.Namespace(**args)
+
+    # logger.debug(tuner_args)
+
+    # logger.info(args)
+
     cfg = get_cfg()
     config_file = args.config_file
     cfg.merge_from_file(config_file)
@@ -73,6 +93,23 @@ if __name__ == "__main__":
     os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
     setup_logger(cfg.OUTPUT_DIR)
 
+    if bool(tuner_args):
+        args = vars(args)
+        args.update(tuner_args)
+        args = argparse.Namespace(**args)
+
+        cfg.MODEL.RPN.NMS_THRESH = args.RPN_NMS_THRESH
+
+        cfg.MODEL.BACKBONE.FREEZE_AT = args.BACKBONE_FREEZE_AT
+        cfg.MODEL.ROI_BOX_HEAD.POOLER_SAMPLING_RATIO = args.ROI_HEAD_POOLER_SAMPLING_RATIO
+        cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION = args.ROI_HEAD_POOLER_RESOLUTION
+        cfg.MODEL.ROI_BOX_HEAD.NUM_CONV = args.ROI_BOX_HEAD_NUM_CONV
+        cfg.MODEL.ROI_BOX_HEAD.NUM_FC = args.ROI_BOX_HEAD_NUM_FC
+
+        cfg.SOLVER.BASE_LR = args.base_lr
+
+    logger.info(args)
+
     cfg.DATASETS.TRAIN = (args.data_train, )
     cfg.DATASETS.VAL = (args.data_val, )
     cfg.DATASETS.TEST = (args.data_test,
@@ -82,21 +119,15 @@ if __name__ == "__main__":
 
     cfg.DATALOADER.NUM_WORKERS = 4
 
-    cfg.MODEL.RPN.PRE_NMS_TOPK_TRAIN = 600
-    cfg.MODEL.RPN.PRE_NMS_TOPK_TEST = 300
-    cfg.MODEL.RPN.POST_NMS_TOPK_TRAIN = 50
-    cfg.MODEL.RPN.POST_NMS_TOPK_TEST = 50
+    cfg.SOLVER.WEIGHT_DECAY = 0.0001
+    cfg.SOLVER.MAX_ITER = int(args.iters)  # 18000
+    cfg.iters_to_save = [None]
+    # cfg.iters_to_save = [1641, 10581, 11581]
 
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 32
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
 
-    cfg.SOLVER.BASE_LR = 0.002
-    cfg.SOLVER.WEIGHT_DECAY = 0.0001
-    cfg.SOLVER.MAX_ITER = int(args.iters)  #18000
-    # cfg.iters_to_save = [None]
-    cfg.iters_to_save = [355, 519, 3192]
-
-    cfg.SOLVER.STEPS = (6000, 8000)  #(12000, 16000)
+    cfg.SOLVER.STEPS = (6000, 8000)  # (12000, 16000)
     cfg.SOLVER.IMS_PER_BATCH = 4
 
     if args.weights is not None:
@@ -109,39 +140,39 @@ if __name__ == "__main__":
 
     trainer = train(cfg, resume=args.resume)
 
-    # eval model
-    cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
-    log_artifact(cfg.MODEL.WEIGHTS)
+    # # eval model
+    # cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
+    # log_artifact(cfg.MODEL.WEIGHTS)
 
-    trainer = MyTrainer(cfg)
-    # trainer = DefaultTrainer(cfg)
-    trainer.resume_or_load(resume=False)
+    # trainer = MyTrainer(cfg)
+    # # trainer = DefaultTrainer(cfg)
+    # trainer.resume_or_load(resume=False)
 
-    evaluator = COCOEvaluator(args.data_train, cfg, False, output_dir=cfg.OUTPUT_DIR)
-    val_loader = build_detection_test_loader(cfg, args.data_train)
-    cfn_mat = CfnMat(args.data_train, output_dir=cfg.OUTPUT_DIR)
-    res = inference_on_dataset(trainer.model, val_loader, DatasetEvaluators([evaluator, cfn_mat]))
-    ap = res.pop('bbox', None)
-    res.update(ap)
-    res = {'train/' + k: v for k, v in res.items()}
-    log_metrics(res)
+    # evaluator = COCOEvaluator(args.data_train, cfg, False, output_dir=cfg.OUTPUT_DIR)
+    # val_loader = build_detection_test_loader(cfg, args.data_train)
+    # cfn_mat = CfnMat(args.data_train, output_dir=cfg.OUTPUT_DIR)
+    # res = inference_on_dataset(trainer.model, val_loader, DatasetEvaluators([evaluator, cfn_mat]))
+    # ap = res.pop('bbox', None)
+    # res.update(ap)
+    # res = {'train/' + k: v for k, v in res.items()}
+    # log_metrics(res)
 
-    if args.data_val is not None:
-        evaluator = COCOEvaluator(args.data_val, cfg, False, output_dir=cfg.OUTPUT_DIR)
-        val_loader = build_detection_test_loader(cfg, args.data_val)
-        cfn_mat = CfnMat(args.data_val, output_dir=cfg.OUTPUT_DIR)
-        res = inference_on_dataset(trainer.model, val_loader,
-                                   DatasetEvaluators([evaluator, cfn_mat]))
-        res = {'val/' + k: v for k, v in res.items()}
-        ap = res.pop('bbox', None)
-        res.update(ap)
-        log_metrics(res)
+    # if args.data_val is not None:
+    #     evaluator = COCOEvaluator(args.data_val, cfg, False, output_dir=cfg.OUTPUT_DIR)
+    #     val_loader = build_detection_test_loader(cfg, args.data_val)
+    #     cfn_mat = CfnMat(args.data_val, output_dir=cfg.OUTPUT_DIR)
+    #     res = inference_on_dataset(trainer.model, val_loader,
+    #                                DatasetEvaluators([evaluator, cfn_mat]))
+    #     res = {'val/' + k: v for k, v in res.items()}
+    #     ap = res.pop('bbox', None)
+    #     res.update(ap)
+    #     log_metrics(res)
 
-    evaluator = COCOEvaluator(args.data_test, cfg, False, output_dir=cfg.OUTPUT_DIR)
-    val_loader = build_detection_test_loader(cfg, args.data_test)
-    cfn_mat = CfnMat(args.data_test, output_dir=cfg.OUTPUT_DIR)
-    res = inference_on_dataset(trainer.model, val_loader, DatasetEvaluators([evaluator, cfn_mat]))
-    ap = res.pop('bbox', None)
-    res.update(ap)
-    res = {'test/' + k: v for k, v in res.items()}
-    log_metrics(res)
+    # evaluator = COCOEvaluator(args.data_test, cfg, False, output_dir=cfg.OUTPUT_DIR)
+    # val_loader = build_detection_test_loader(cfg, args.data_test)
+    # cfn_mat = CfnMat(args.data_test, output_dir=cfg.OUTPUT_DIR)
+    # res = inference_on_dataset(trainer.model, val_loader, DatasetEvaluators([evaluator, cfn_mat]))
+    # ap = res.pop('bbox', None)
+    # res.update(ap)
+    # res = {'test/' + k: v for k, v in res.items()}
+    # log_metrics(res)
