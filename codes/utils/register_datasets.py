@@ -95,11 +95,33 @@ def register_mosquitoes():
     register_datasets(('fold0_train_bucket', 'fold0_val_bucket', 'fold0_test_bucket'), v1_path,
                       v1_path + '/frames/')
 
-    sets = [f'train{n}_tire' for n in np.arange(8)]
-    sets += [f'val{n}_tire' for n in np.arange(8)]
-    sets += ['test0_tire']
+    sets = [f'train{n}' for n in np.arange(8)]
+    sets += [f'val{n}' for n in np.arange(8)]
+    sets += ['train+val']
+    sets += ['test']
+
+    objs = ['tire', 'watertank']
+
+    comb = list(product(sets, objs))
+
+    sets = ['_'.join(c) for c in comb]
 
     register_datasets(sets, v1_path, v1_path + '/frames/')
+
+    # orthomosaic
+
+    sets = [f'mosaic_train{n}' for n in np.arange(8)]
+    sets += [f'mosaic_val{n}' for n in np.arange(8)]
+    sets += ['mosaic_train+val']
+    sets += ['mosaic_test']
+
+    objs = ['tire', 'watertank']
+
+    comb = list(product(sets, objs))
+
+    sets = ['_'.join(c) for c in comb]
+
+    register_datasets(sets, v1_path, v1_path + '/frames_pseudomosaic/')
 
 
 if __name__ == "__main__":

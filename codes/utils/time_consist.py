@@ -362,11 +362,8 @@ def apply_time_consistency(predictions,
     return new_preds
 
 
-def tube_space_time(all_preds, df, thr=0.5):
+def tube_space_time(all_preds, df, thr=0.5, h=2160, w=3840):
     pipe = dict()
-
-    h = 2160
-    w = 3840
 
     def _scan(direction=1):
 
