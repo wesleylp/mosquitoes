@@ -131,7 +131,7 @@ def convert_mosquitoes_instance_only(data_dir, ann_dir, annotator, out_dir, file
         # 'bottle': 4,
     }
 
-    json_name = f'coco_format_%s%s_{"_".join(category_dict.keys())}.json'
+    json_name = f'coco_format_%s_{"_".join(category_dict.keys())}.json'
 
     # subsets = ['train', 'val', 'test']
 
@@ -147,12 +147,12 @@ def convert_mosquitoes_instance_only(data_dir, ann_dir, annotator, out_dir, file
         df_set = {0: pd.read_csv(file_set)}
 
     mask = df_set[0]['test'] == True
-    videos_train = df_set[0][~mask]['Video'].tolist()
+    videos_train_val = df_set[0][~mask]['Video'].tolist()
     videos_test = df_set[0][mask]['Video'].tolist()
 
-    sets = [f'train{n}' for n in np.arange(len(videos_train))]
-    sets += [f'val{n}' for n in np.arange(len(videos_train))]
-    sets += ['test0']
+    sets = [f'train{n}' for n in np.arange(len(videos_train_val))]
+    sets += [f'val{n}' for n in np.arange(len(videos_train_val))]
+    sets += ['train+val', 'test']
 
     annot_stats = {}
 
@@ -160,22 +160,27 @@ def convert_mosquitoes_instance_only(data_dir, ann_dir, annotator, out_dir, file
     for data_set in tqdm(sets):
         print(f'Starting {data_set}')
 
-        if 'train' in data_set:
-            idx_val = int(data_set[-1])
-            videos_set = [x for i, x in enumerate(videos_train) if i != idx_val]
+        if 'train+val' in data_set:
+            videos_set = videos_train_val
 
-        if 'val' in data_set:
+        elif 'train' in data_set:
             idx_val = int(data_set[-1])
-            videos_set = [videos_train[idx_val]]
+            videos_set = [x for i, x in enumerate(videos_train_val) if i != idx_val]
 
-        if data_set == 'test':
+        elif 'val' in data_set:
             idx_val = int(data_set[-1])
+            videos_set = [videos_train_val[idx_val]]
+
+        elif data_set == 'test':
             videos_set = videos_test
+
+        else:
+            raise ValueError("Invalid data_set")
 
         # videos_set = df_set[fold][df_set[fold][data_set] == True]['Video'].tolist()
 
         ann_dict = Convert2Coco(category_dict)
-        for (dirpath, dirnames, filenames) in os.walk(os.path.join(data_dir, 'frames')):
+        for (dirpath, dirnames, filenames) in os.walk(data_dir):
             if len(filenames) == 0:
                 continue
 
@@ -192,7 +197,7 @@ def convert_mosquitoes_instance_only(data_dir, ann_dir, annotator, out_dir, file
                     width, height = get_img_size(img_name)
                     bboxes = get_groundtruth(img_name, ann_dir, annotator)
                     ann_dict.update(img_name_short, width, height, bboxes)
-        ann_dict.export(os.path.join(out_dir, json_name % (data_set[:-1], idx_val)))
+        ann_dict.export(os.path.join(out_dir, json_name % data_set))
 
     return
 

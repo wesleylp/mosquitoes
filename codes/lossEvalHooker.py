@@ -152,16 +152,34 @@ class ValidationLoss(HookBase):
                 self.trainer.storage.put_scalars(total_val_loss=losses_reduced, **loss_dict_reduced)
 
 
+class SaveModel(HookBase):
+    def __init__(self, checkpointer, iters_to_save) -> None:
+        super().__init__()
+        self._checkpointer = checkpointer
+        # R50FPN
+        self.iters_to_save = iters_to_save
+
+    def after_step(self):
+        next_iter = self.trainer.iter + 1
+
+        if next_iter in self.iters_to_save:
+            self._checkpointer.save(f"model_{next_iter:07d}", iteration=next_iter)
+
+
 class MyTrainer2(DefaultTrainer):
     def build_hooks(self):
         hooks = super().build_hooks()
-        hooks.insert(-1, ValidationLoss(self.cfg))
 
-        hooks[-1] = PeriodicWriter(self.build_writers(), period=self.cfg.VAL_PERIOD)
+        if self.cfg.DATASETS.VAL[0] is not None:
+            hooks.insert(-1, ValidationLoss(self.cfg))
+            hooks[-1] = PeriodicWriter(self.build_writers(), period=self.cfg.VAL_PERIOD)
+
+        if self.cfg.iters_to_save[0] is not None:
+            hooks.insert(-1, SaveModel(self.checkpointer, self.cfg.iters_to_save))
 
         # multi gpu
         # swap the order of PeriodicWriter and ValidationLoss
-        # code hangs with no GPUs > 1 if this line is removed
+        # code hangs with no GPUs > 1 if this line is remove
         # hooks = hooks[:-2] + hooks[-2:][::-1]
 
         return hooks

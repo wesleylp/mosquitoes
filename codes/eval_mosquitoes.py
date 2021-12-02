@@ -1,7 +1,7 @@
 import argparse
 # import json
 import os
-
+import pandas as pd
 from detectron2.config import get_cfg
 from detectron2.data import (DatasetCatalog, MetadataCatalog, build_detection_test_loader)
 from detectron2.data.datasets import register_coco_instances
@@ -33,14 +33,15 @@ if __name__ == "__main__":
                         help="path to config file")
     parser.add_argument("--data-dir", default=data_dir_default, metavar="FILE", help="path to data")
     parser.add_argument("--data-train",
-                        default="mbg_fold0_train_watertank",
+                        default="mbg_mosaic_train1_tire",
                         metavar="FILE",
                         help="path to data")
 
-    parser.add_argument("--data-test",
-                        default="mbg_fold0_train_watertank",
-                        metavar="FILE",
-                        help="path to data")
+    parser.add_argument("--model_iter",
+                        default=1146,
+                        help="model iteration to be evaluated. May be an int or `final`.")
+
+    parser.add_argument("--data-test", default="mbg_val1_tire", metavar="FILE", help="path to data")
 
     args = parser.parse_args()
 
@@ -77,18 +78,64 @@ if __name__ == "__main__":
     cfg.SOLVER.IMS_PER_BATCH = 4
 
     # cfg.MODEL.DEVICE = "cpu"
+    model_iter = f"{int(args.model_iter):07d}"
+    obj = args.data_test.split('_')[-1]
+    model_name = os.path.splitext(os.path.basename(args.config_file))[0]
+    cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, f"model_{model_iter}.pth")
 
-    cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, "model_final.pth")
-    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.05  # set the testing
+    def init_res_dict():
+        return {
+            'score': [],
+            'TP': [],
+            'FP': [],
+            'FN': [],
+            'Pr': [],
+            'Rc': [],
+            'F1': [],
+            'AP50': [],
+        }
 
-    trainer = DefaultTrainer(cfg)
-    trainer.resume_or_load(resume=False)
+    res = init_res_dict()
 
-    val_loader = build_detection_test_loader(cfg, args.data_test)
-    evaluator = COCOEvaluator(args.data_test,
-                              cfg,
-                              False,
-                              output_dir=os.path.join(cfg.OUTPUT_DIR, args.data_test))
-    cfn_mat = CfnMat(args.data_test, output_dir=cfg.OUTPUT_DIR)
+    scores = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
 
-    inference_on_dataset(trainer.model, val_loader, DatasetEvaluators([evaluator, cfn_mat]))
+    for score in scores:
+
+        res['score'].append(score)
+
+        cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = score  # set the testing
+
+        trainer = DefaultTrainer(cfg)
+        trainer.resume_or_load(resume=False)
+
+        val_loader = build_detection_test_loader(cfg, args.data_test)
+        evaluator = COCOEvaluator(args.data_test,
+                                  cfg,
+                                  False,
+                                  output_dir=os.path.join(cfg.OUTPUT_DIR, args.data_test))
+        cfn_mat = CfnMat(args.data_test, output_dir=cfg.OUTPUT_DIR)
+
+        # inference_on_dataset(trainer.model, val_loader, DatasetEvaluators([evaluator, cfn_mat]))
+
+        results = inference_on_dataset(trainer.model, val_loader,
+                                       DatasetEvaluators([evaluator, cfn_mat]))
+
+        res['TP'].append(results['tp'])
+        res['FP'].append(results['fp'])
+        res['FN'].append(results['fn'])
+        res['AP50'].append(results['bbox']['AP50'])
+
+        pr = results['tp'] / (results['tp'] + results['fp'] + 1e-16)
+        rc = results['tp'] / (results['tp'] + results['fn'] + 1e-16)
+        f1 = (2 * pr * rc) / (pr + rc + 1e-16)
+
+        res['Pr'].append(pr)
+        res['Rc'].append(rc)
+        res['F1'].append(f1)
+
+    df = pd.DataFrame(res)
+
+    save_results_dir = os.path.dirname(cfg.MODEL.WEIGHTS)
+    name_base = f'{obj}_{model_name}_model_{model_iter}_{args.data_test.split("_")[-2]}'
+
+    df.to_csv(os.path.join(save_results_dir, name_base + '.csv'))
