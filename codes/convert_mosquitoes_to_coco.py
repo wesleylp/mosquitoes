@@ -54,7 +54,7 @@ class Convert2Coco:
         image['id'] = self.img_id
         self.img_id += 1
 
-        # gambiarra
+        # gambiarra (tranform tuple into dict)
         if isinstance(gt, tuple):
             gt = {label: box for label, box in zip(gt[1], gt[0])}
 
@@ -96,14 +96,14 @@ def parse_args():
 
     parser.add_argument('--anndir',
                         help="annotation dir for txt files",
-                        default=os.path.join(this_filedir, '../data/v1'),
+                        default=os.path.join(this_filedir, '../data/v1/annotation'),
                         type=str)
 
     parser.add_argument('--annotator', help="annotator name used", default='cvat', type=str)
 
     parser.add_argument('--datadir',
                         help="data dir for annotations to be converted",
-                        default=os.path.join(this_filedir, '../data/v1'),
+                        default=os.path.join(this_filedir, '../data/v1/frames'),
                         type=str)
 
     parser.add_argument('--file_set',

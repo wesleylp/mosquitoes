@@ -1,0 +1,75 @@
+experimentName: mosquito_tuner_gan2x_fold2
+trialConcurrency: 2                         # Run 2 trials concurrently
+maxTrialNumber: 100                         # Generate at most 1000 trials
+maxExperimentDuration: 48h                   # Stop generating all trials after 24 hour
+
+searchSpaceFile: search_space.json           # Specify the Search Space file path
+useAnnotation: false                         # If it is true, searchSpaceFile will be ignore. default: false
+
+TrainingService:
+  platform: local
+  useActiveGpu: true
+  maxTrialNumberPerGpu: 1
+  gpuIndices: 0,1
+
+# nniManagerIp: 10.221.70.3 # leiria
+# nniManagerIp: 127.0.0.1 # local
+# TrainingService:
+#   platform: remote
+#   machineList:
+#     - host: 10.221.70.3 # leiria
+#       user: wesley.passos
+#       ssh_key_file: /home/wesley.passos/.ssh/id_rsa
+#       useActiveGpu: true
+#       maxTrialNumberPerGpu: 1
+#       gpuIndices: 0, 1
+#       pythonPath: /home/wesley.passos/miniconda3/envs/mosquitoes/bin
+#     - host: 10.221.70.6 # oslo
+#       user: wesley.passos
+#       ssh_key_file: /home/wesley.passos/.ssh/id_rsa
+#       useActiveGpu: true
+#       gpuIndices: 0
+#       maxTrialNumberPerGpu: 1
+#     - host: 10.221.70.7 # taiwan
+#       user: wesley.passos
+#       ssh_key_file: /home/wesley.passos/.ssh/id_rsa
+#       useActiveGpu: true
+#       gpuIndices: 0
+#       maxTrialNumberPerGpu: 1
+#       pythonPath: /home/wesley.passos/miniconda3/envs/mosquitoes/bin
+#     - host: 10.221.70.10 # trodheim
+#       user: wesley.passos
+#       ssh_key_file: /home/wesley.passos/.ssh/id_rsa
+#       useActiveGpu: true
+#       gpuIndices: 0, 1
+#       maxTrialNumberPerGpu: 1
+#       pythonPath: /home/wesley.passos/miniconda3/envs/mosquitoes/bin
+#     - host: 10.221.70.15 # helsinque
+#       user: wesley.passos
+#       ssh_key_file: /home/wesley.passos/.ssh/id_rsa
+#       useActiveGpu: true
+#       gpuIndices: [0, 1]
+#       maxTrialNumberPerGpu: 1
+#     - host: 10.221.90.20 # head-04-01
+#       user: wesley.passos
+#       ssh_key_file: /home/wesley.passos/.ssh/id_rsa
+#       useActiveGpu: true
+#       gpuIndices: [0, 1]
+#       maxTrialNumberPerGpu: 1
+#     - host: 10.221.90.21 # node-04-01
+#       user: wesley.passos
+#       ssh_key_file: /home/wesley.passos/.ssh/id_rsa
+#       useActiveGpu: true
+#       gpuIndices: [0, 1]
+#       maxTrialNumberPerGpu: 1
+
+tuner:                                       # Configure the tuning algorithm
+  name: TPE
+  classArgs:                                 # Algorithm specific arguments
+    # choice: maximize, minimize
+    optimize_mode: minimize                  # maximize or minimize the needed metrics
+trialCommand: MKL_SERVICE_FORCE_INTEL=1 python train_mosquitoes.py --config-file configs/mosquitoes/faster_rcnn_R_50_FPN_1x.yaml --data-train mbg_gan2x_train2 --data-val mbg_val2_tire --data-test mbg_test_tire --iters 1000
+trialCodeDirectory: .                                 # Specify the Trial file path
+trialGpuNumber: 1                                  # Each trial needs 1 gpu
+
+# logDirectory: ./log                                # Specify the log path, default: <user home directory>/nni-experiments

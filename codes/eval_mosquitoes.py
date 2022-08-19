@@ -78,7 +78,11 @@ if __name__ == "__main__":
     cfg.SOLVER.IMS_PER_BATCH = 4
 
     # cfg.MODEL.DEVICE = "cpu"
-    model_iter = f"{int(args.model_iter):07d}"
+    try:
+        model_iter = f"{int(args.model_iter):07d}"
+    except ValueError:
+        model_iter = f"{args.model_iter}"
+
     obj = args.data_test.split('_')[-1]
     model_name = os.path.splitext(os.path.basename(args.config_file))[0]
     cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR, f"model_{model_iter}.pth")
@@ -117,8 +121,11 @@ if __name__ == "__main__":
 
         # inference_on_dataset(trainer.model, val_loader, DatasetEvaluators([evaluator, cfn_mat]))
 
-        results = inference_on_dataset(trainer.model, val_loader,
-                                       DatasetEvaluators([evaluator, cfn_mat]))
+        results = inference_on_dataset(
+            trainer.model,
+            val_loader,
+            DatasetEvaluators([evaluator, cfn_mat]),
+        )
 
         res['TP'].append(results['tp'])
         res['FP'].append(results['fp'])

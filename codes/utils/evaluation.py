@@ -145,8 +145,8 @@ class CfnMat(DatasetEvaluator):
             # mark the proposal box and the gt box as used
             overlaps[box_ind, :] = -1
             overlaps[:, gt_ind] = -1
-
-        tp = (gt_overlaps >= thr).int().sum().item()
+        print(type(thr))
+        tp = (gt_overlaps >= float(thr)).int().sum().item()
         assert tp >= 0
 
         fp = len(pred) - tp

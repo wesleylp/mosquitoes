@@ -1,0 +1,76 @@
+{
+    "base_lr": {
+        "_type": "loguniform",
+        "_value": [
+            0.0001,
+            0.01
+        ]
+    },
+    "ROI_BOX_HEAD_NUM_CONV": {
+        "_type": "choice",
+        "_value": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ]
+    },
+    "ROI_BOX_HEAD_NUM_FC": {
+        "_type": "choice",
+        "_value": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+        ]
+    },
+    "RPN_NMS_THRESH": {
+        "_type": "choice",
+        "_value": [
+            0.5,
+            0.6,
+            0.7,
+            0.8,
+            0.9,
+            0.95,
+            0.99
+        ]
+    },
+    "ROI_HEAD_POOLER_RESOLUTION": {
+        "_type": "choice",
+        "_value": [
+            3,
+            7,
+            14,
+            28,
+            35
+        ]
+    },
+    "ROI_HEAD_POOLER_SAMPLING_RATIO": {
+        "_type": "choice",
+        "_value": [
+            -1,
+            0,
+            1,
+            2,
+            3,
+            4
+        ]
+    },
+    "BACKBONE_FREEZE_AT": {
+        "_type": "choice",
+        "_value": [
+            0,
+            1,
+            2,
+            3,
+            4
+        ]
+    }
+}
