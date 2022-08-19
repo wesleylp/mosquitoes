@@ -122,8 +122,11 @@ if __name__ == "__main__":
 
         # inference_on_dataset(trainer.model, val_loader, DatasetEvaluators([evaluator, cfn_mat]))
 
-        results = inference_on_dataset(trainer.model, val_loader,
-                                       DatasetEvaluators([evaluator, cfn_mat]))
+        results = inference_on_dataset(
+            trainer.model,
+            val_loader,
+            DatasetEvaluators([evaluator, cfn_mat]),
+        )
 
         res['TP'].append(results['tp'])
         res['FP'].append(results['fp'])

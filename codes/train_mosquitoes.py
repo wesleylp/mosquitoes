@@ -127,7 +127,13 @@ if __name__ == "__main__":
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 32
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
 
-    cfg.SOLVER.STEPS = (6000, 8000)  # (12000, 16000)
+    cfg.SOLVER.BASE_LR = 0.002
+    cfg.SOLVER.WEIGHT_DECAY = 0.0001
+    cfg.SOLVER.MAX_ITER = int(args.iters)  #18000
+    # cfg.iters_to_save = [None]
+    cfg.iters_to_save = [1431, 7642, 8202, 13504]
+
+    cfg.SOLVER.STEPS = (6000, 8000)  #(12000, 16000)
     cfg.SOLVER.IMS_PER_BATCH = 4
 
     if args.weights is not None:
