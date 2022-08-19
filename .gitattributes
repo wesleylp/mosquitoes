@@ -1,4 +1,3 @@
-#Removes cell's metadata and execution number
 *.ipynb filter=nbstrip_basic
 
 # Removes cells's output

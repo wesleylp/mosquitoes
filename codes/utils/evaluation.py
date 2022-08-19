@@ -123,9 +123,12 @@ class CfnMat(DatasetEvaluator):
 
         return res
 
+    # @staticmethod
     def _cnf_mat(self, pred, gt, thr=0.5):
         gt_overlaps = torch.zeros(len(gt))
         overlaps = pairwise_iou(pred, gt)
+
+        all_boxe_ind = torch.zeros(len(pred))
 
         for j in range(min(len(pred), len(gt))):
 
@@ -145,8 +148,11 @@ class CfnMat(DatasetEvaluator):
             # mark the proposal box and the gt box as used
             overlaps[box_ind, :] = -1
             overlaps[:, gt_ind] = -1
-        print(type(thr))
-        tp = (gt_overlaps >= float(thr)).int().sum().item()
+
+            if gt_ovr >= thr:
+                all_boxe_ind[box_ind] = 1
+
+        tp = (gt_overlaps >= thr).int().sum().item()
         assert tp >= 0
 
         fp = len(pred) - tp
@@ -155,6 +161,7 @@ class CfnMat(DatasetEvaluator):
         fn = len(gt) - tp
         assert fn >= 0
 
+        # return tp, fp, fn, all_boxe_ind
         return tp, fp, fn
 
 

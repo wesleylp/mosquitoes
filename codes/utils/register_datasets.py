@@ -108,6 +108,58 @@ def register_mosquitoes():
 
     register_datasets(sets, v1_path, v1_path + '/frames/')
 
+    # orthomosaic
+    sets = [f'mosaic_train{n}' for n in np.arange(8)]
+    sets += [f'mosaic_val{n}' for n in np.arange(8)]
+    sets += ['mosaic_train+val']
+    sets += ['mosaic_test']
+
+    objs = ['tire', 'watertank']
+
+    comb = list(product(sets, objs))
+
+    sets = ['_'.join(c) for c in comb]
+
+    register_datasets(sets, v1_path, v1_path + '/frames_pseudomosaic/')
+
+    # data aug classic
+    classic_dir = os.path.join(data_root, 'data_aug')
+
+    methods = [
+        'classic2x_v2',
+    ]
+
+    for method in methods:
+        sets = [f'train{n}' for n in np.arange(8)]
+        sets += ['train+val']
+
+        comb = list(product([method], sets))
+
+        sets = ['_'.join(c) for c in comb]
+
+        method_dir = os.path.join(classic_dir, method)
+
+        register_datasets(sets, method_dir, method_dir)
+
+    # data aug GAN
+    GAN_dir = os.path.join(data_root, 'data_aug', 'GAN')
+
+    methods = [
+        'GAN2x',
+    ]
+
+    for method in methods:
+        sets = [f'train{n}' for n in np.arange(8)]
+        sets += ['train+val']
+
+        comb = list(product([method], sets))
+
+        sets = ['_'.join(c) for c in comb]
+
+        method_dir = os.path.join(GAN_dir, method)
+
+        register_datasets(sets, method_dir, method_dir)
+
 
 if __name__ == "__main__":
     register_mosquitoes()

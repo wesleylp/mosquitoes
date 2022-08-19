@@ -156,6 +156,11 @@ class ValidationLoss(HookBase):
             if comm.is_main_process():
                 self.trainer.storage.put_scalars(total_val_loss=losses_reduced, **loss_dict_reduced)
 
+            nni.report_intermediate_result(losses_reduced)
+
+    def after_train(self):
+        nni.report_final_result(self.trainer.storage.latest()["total_val_loss"][0])
+
 
 class SaveModel(HookBase):
     def __init__(self, checkpointer, iters_to_save) -> None:
