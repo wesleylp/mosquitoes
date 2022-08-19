@@ -426,3 +426,7 @@ output
 output/**/*
 *.avi
 *.xml
+notebooks/*.mp4
+mlruns
+codes/mlruns
+*.pkl

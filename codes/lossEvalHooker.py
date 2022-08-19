@@ -18,6 +18,7 @@ import albumentations as AB
 import detectron2.data.transforms.external as A
 from detectron2.structures import BoxMode, Boxes
 from custom_augmentations import CutOut, AugmentHSV, RandomPerspective
+import nni
 
 
 class LossEvalHook(HookBase):
