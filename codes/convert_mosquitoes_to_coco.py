@@ -17,6 +17,7 @@ from boxes import box_area, clip_box_to_image, xyxy_to_xywh
 
 
 class Convert2Coco:
+
     def __init__(
         self,
         category_dict={
@@ -88,7 +89,7 @@ class Convert2Coco:
 
 
 def parse_args():
-    this_filedir = os.path.dirname(os.path.realpath(__file__))
+    this_filedir = os.path.dirname(os.path.abspath(__file__))
 
     parser = argparse.ArgumentParser(description='Convert dataset')
     # parser.add_argument('--dataset', help="cocostuff, cityscapes", default=None, type=str)
