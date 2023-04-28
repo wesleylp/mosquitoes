@@ -87,7 +87,7 @@ if __name__ == "__main__":
 
     this_filedir = os.path.dirname(os.path.realpath(__file__))
     config_default = os.path.join(this_filedir, "configs", "mosquitoes",
-                                  "faster_rcnn_R_50_FPN_1x.yaml")
+                                  "faster_rcnn_R_50_FPN_1x_augm-low.yaml")
     data_path = os.path.join(this_filedir, "../data/v1")
 
     parser = argparse.ArgumentParser(description="Time Consist")
@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--object", type=str, default="tire", help="object to detect")
 
-    parser.add_argument("--set", type=str, default=None, help="train, val or test set")
+    parser.add_argument("--set", type=str, default='test', help="train, val or test set")
 
     parser.add_argument("--phasecorrfold",
                         type=str,
@@ -110,7 +110,7 @@ if __name__ == "__main__":
 
     # parser.add_argument("--center", default=1, help="whether the window is centered")
 
-    parser.add_argument("--score_thr", default=0.9, help="score thresholding filtering")
+    parser.add_argument("--score_thr", default=0.8, help="score thresholding filtering")
 
     parser.add_argument("--threshold",
                         default=0.5,
@@ -130,10 +130,10 @@ if __name__ == "__main__":
                         default=24,
                         help="interval of frames to evaluate ")
 
-    parser.add_argument("--fold", default=0, help="k number of kfold")
+    parser.add_argument("--fold", default='train+val', help="k number of kfold")
 
     parser.add_argument("--model_iter",
-                        default=6574,
+                        default=7642,
                         help="model iteration to be evaluated. May be an int or `final`.")
 
     args = parser.parse_args()
@@ -170,11 +170,12 @@ if __name__ == "__main__":
     df_set = pd.read_excel(file_set, sheet_name=f'train_sets_k{0}')
 
     if args.set is not None:
-        videos_names = df_set[df_set[f'{args.set}'] == True]['Video'].tolist()
+        videos_names = df_set[df_set[f'{args.set}'] == True]['seq'].tolist()
 
     elif args.fold is not None and args.set is None:
         # if fold is set, load only the videos of fold
-        videos_names = df_set[df_set['test'] != True]['Video'].tolist()
+        videos_names = df_set[df_set['test'] != True]['seq'].tolist(
+        )  # use 'seq' for videoNN or 'Video' for yyyymmdd_rec...
         videos_names = [videos_names[int(args.fold[-1])]]
 
     else:
@@ -182,10 +183,10 @@ if __name__ == "__main__":
 
     videos_names = [s + ".avi" for s in videos_names]
 
-    scores = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
-    # scores = [0.9]
-    votes = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
-    # votes = [0.4]
+    # scores = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
+    scores = [0.8]
+    # votes = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
+    votes = [0.4]
     margin = (0, 0)
 
     def init_res_dict():
