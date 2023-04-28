@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
     this_filepath = os.path.dirname(os.path.abspath(__file__))
     config_default = os.path.join(this_filepath, "configs", "mosquitoes",
-                                  "faster_rcnn_R_50_FPN_1x.yaml")
+                                  "faster_rcnn_R_50_FPN_1x_augm-low.yaml")
 
     data_dir_default = os.path.join(this_filepath, '..', 'data', 'v1')
 
@@ -33,15 +33,15 @@ if __name__ == "__main__":
                         help="path to config file")
     parser.add_argument("--data-dir", default=data_dir_default, metavar="FILE", help="path to data")
     parser.add_argument("--data-train",
-                        default="mbg_mosaic_train1_tire",
+                        default="mbg_train+val_tire",
                         metavar="FILE",
                         help="path to data")
 
     parser.add_argument("--model_iter",
-                        default=1146,
+                        default=7642,
                         help="model iteration to be evaluated. May be an int or `final`.")
 
-    parser.add_argument("--data-test", default="mbg_val1_tire", metavar="FILE", help="path to data")
+    parser.add_argument("--data-test", default="mbg_test_tire", metavar="FILE", help="path to data")
 
     args = parser.parse_args()
 
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 64
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
 
-    cfg.SOLVER.BASE_LR = 0.005
+    cfg.SOLVER.BASE_LR = 0.002
     cfg.SOLVER.WEIGHT_DECAY = 0.0001
     cfg.SOLVER.MAX_ITER = 10000
     cfg.SOLVER.STEPS = (6000, 8000)
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     res = init_res_dict()
 
     scores = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99]
-    # scores = [0.9]
+    # scores = [0.05]
 
     for score in scores:
 
