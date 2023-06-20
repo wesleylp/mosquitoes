@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import skimage.feature as ft
 import torch
-from skimage.measure import compare_mse, compare_psnr, compare_ssim
+from skimage.metrics import mean_squared_error, peak_signal_noise_ratio, structural_similarity
 
 from detectron2.structures.boxes import Boxes
 
@@ -32,7 +32,9 @@ def add_bb_on_image(image, bounding_box, color=(255, 0, 0), thickness=5, label=N
 
     # TODO: put text
     if label is not None:
-        pass
+        cv2.putText(image,
+                    label.split("-")[0], (x_i, y_i - 10), cv2.FONT_HERSHEY_SIMPLEX, 2.0, (b, g, r),
+                    5)
     return image
 
 
@@ -51,15 +53,15 @@ def add_bboxes_on_image(image, bboxes, color=(255, 0, 0), thickness=5, label=Non
 
 
 def compute_mse(img1, img2):
-    return compare_mse(img1, img2)
+    return mean_squared_error(img1, img2)
 
 
 def compute_psnr(img1, img2):
-    return compare_psnr(img1, img2)
+    return peak_signal_noise_ratio(img1, img2)
 
 
 def compute_ssim(img1, img2, multichannel=True):
-    return compare_ssim(img1, img2, multichannel=multichannel)
+    return structural_similarity(img1, img2, multichannel=multichannel)
 
 
 def compute_lbp(img_rgb, p=24, r=3, method='uniform'):
