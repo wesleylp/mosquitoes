@@ -22,6 +22,7 @@ import nni
 
 
 class LossEvalHook(HookBase):
+
     def __init__(self, cfg, model, data_loader, checkpointer):
         self._model = model
         self._period = cfg.VAL_PERIOD
@@ -112,6 +113,7 @@ class LossEvalHook(HookBase):
 
 
 class MyTrainer(DefaultTrainer):
+
     @classmethod
     def build_evaluator(cls, cfg, dataset_name, output_folder=None):
         if output_folder is None:
@@ -133,6 +135,7 @@ class MyTrainer(DefaultTrainer):
 
 
 class ValidationLoss(HookBase):
+
     def __init__(self, cfg) -> None:
         super().__init__()
         self.cfg = cfg.clone()
@@ -164,6 +167,7 @@ class ValidationLoss(HookBase):
 
 
 class SaveModel(HookBase):
+
     def __init__(self, checkpointer, iters_to_save) -> None:
         super().__init__()
         self._checkpointer = checkpointer
@@ -178,6 +182,7 @@ class SaveModel(HookBase):
 
 
 class KeepPredsPeriod(HookBase):
+
     def __init__(self, folder_path, period) -> None:
         super().__init__()
         self.period = period
@@ -235,6 +240,7 @@ def build_train_aug(cfg):
 
 
 class MyTrainer2(DefaultTrainer):
+
     def build_hooks(self):
         hooks = super().build_hooks()
 
@@ -272,14 +278,17 @@ class MyTrainer2(DefaultTrainer):
     @classmethod
     def build_train_loader(cls, cfg):
         # TODO: make a control parameter to use augmentation
-        if True:
+        if cfg.INPUT.CUSTOM_AUGMENTATIONS:
+            print("USING EAAI CUSTOM AUGMENTATIONS!")
             mapper = CustomDatasetMapper(cfg, is_train=True, augmentations=build_train_aug(cfg))
         else:
+            print("USING DEFAULT AUGMENTATIONS!")
             mapper = None
         return build_detection_train_loader(cfg, mapper=mapper)
 
 
 class CustomDatasetMapper(DatasetMapper):
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
