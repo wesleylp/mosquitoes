@@ -17,7 +17,7 @@ if __name__ == '__main__':
     parser.add_argument(
         "--video_path",
         default=
-        '/home/wesley.passos/repos/mosquitoes-wes/data/fiverr/videos/20210203_rectfied_DJI_0059.avi',
+        '/home/wesley.passos/repos/mosquitoes-wes/data/fiverr/videos/20190601_rectified_DJI_0005.avi',
         metavar="FILE",
         help="path to video")
 
@@ -27,7 +27,7 @@ if __name__ == '__main__':
     video_name = os.path.basename(video_path)
 
     # TODO: include this in the argparse
-    annotation_filepath = f'/home/wesley.passos/repos/mosquitoes-wes/data/fiverr/annotations/{video_name.replace(".avi", "_sampled.xml")}'
+    annotation_filepath = f'/home/wesley.passos/repos/mosquitoes-wes/data/fiverr/annotations_sampled/{video_name.replace(".avi", "_sampled.xml")}'
 
     # get video information
     reader = imageio.get_reader(video_path)
@@ -79,8 +79,8 @@ if __name__ == '__main__':
         box_to_backpropagate = copy.deepcopy(boxes[0].attrib)
         frame = int(box_to_backpropagate['frame'])
         if frame > 0:
-            new_frame = (frame * 30) - 1
-            while new_frame >= 0 and new_frame % 30 != 0:
+            new_frame = (frame * round(fps)) - 1
+            while new_frame >= 0 and new_frame % round(fps) != 0:
                 x_shift, y_shift = get_shift(phase_corr, new_frame + 1, -1)
 
                 # add the shift in the box coordinates
@@ -121,16 +121,16 @@ if __name__ == '__main__':
         for box_idx, box_labeled in enumerate(boxes):
             # First, set the manually labeled frame back to the original video
             frame = int(box_labeled.attrib['frame'])
-            box_labeled.set("frame", f"{int(frame*30)}")
+            box_labeled.set("frame", f"{int(frame*round(fps))}")
 
             if box_labeled.attrib["outside"] == "1":
                 track.remove(box_labeled)
 
             elif box_labeled.attrib["outside"] == "0":
-                new_frame = (frame * 30) + 1
+                new_frame = (frame * round(fps)) + 1
                 box_propagated_attrib = copy.deepcopy(box_labeled.attrib)
 
-                while new_frame % 30 != 0 and new_frame < nb_frames:
+                while new_frame % round(fps) != 0 and new_frame < nb_frames:
                     x_shift, y_shift = get_shift(phase_corr, new_frame - 1, 1)
 
                     # add the shift in the box coordinates
