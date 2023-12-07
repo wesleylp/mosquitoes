@@ -9,17 +9,16 @@ import numpy as np
 import argparse
 from tqdm import tqdm
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Time Consist")
 
     # TODO: make in batch ()
     parser.add_argument(
         "--video_path",
-        default=
-        '/home/wesley.passos/repos/mosquitoes-wes/data/fiverr/videos/20190601_rectified_DJI_0005.avi',
+        default="/home/wesley.passos/repos/mosquitoes-wes/data/fiverr/videos/20210317_rectified_DJI_0073.avi",
         metavar="FILE",
-        help="path to video")
+        help="path to video",
+    )
 
     args = parser.parse_args()
 
@@ -31,7 +30,7 @@ if __name__ == '__main__':
 
     # get video information
     reader = imageio.get_reader(video_path)
-    fps = reader.get_meta_data()['fps']
+    fps = reader.get_meta_data()["fps"]
     # nb_frames = int(reader.get_meta_data()['duration'] * fps)
 
     #### PHASE CORRELATION ####
@@ -40,22 +39,25 @@ if __name__ == '__main__':
     video_height = vid.videoInfo.getHeight()
     nb_frames = int(vid.videoInfo.getNumberOfFrames())
 
-    print('Phase correlation...')
-    phase_corr_folder = os.path.dirname(video_path).replace('videos', 'phase_correlation')
+    print("Phase correlation...")
+    phase_corr_folder = os.path.dirname(video_path).replace(
+        "videos", "phase_correlation"
+    )
     os.makedirs(phase_corr_folder, exist_ok=True)
 
-    phase_corr_file = os.path.join(os.path.join(phase_corr_folder),
-                                   video_name.replace(".avi", "_phaseCorr.pkl"))
+    phase_corr_file = os.path.join(
+        os.path.join(phase_corr_folder), video_name.replace(".avi", "_phaseCorr.pkl")
+    )
 
     # in case it was previously computed, load it
     if os.path.isfile(phase_corr_file):
-        print('loading phase corr...')
-        pkl_file = open(phase_corr_file, 'rb')
+        print("loading phase corr...")
+        pkl_file = open(phase_corr_file, "rb")
         phase_corr = pickle.load(pkl_file)
     # otherwise, compute and save for future usage
     else:
-        print('computing phase corr...')
-        pkl_file = open(phase_corr_file, 'wb')
+        print("computing phase corr...")
+        pkl_file = open(phase_corr_file, "wb")
         phase_corr = video_phaseCorrelation(vid, scale=0.4)
         pickle.dump(phase_corr, pkl_file)
 
@@ -66,28 +68,30 @@ if __name__ == '__main__':
     root = tree.getroot()
 
     # set the last frame as the total number of (downsampled) video frames
-    stop_frame = int(tree.find('.//stop_frame').text)
-    tree.find('.//stop_frame').text = str(nb_frames - 1)
+    stop_frame = int(tree.find(".//stop_frame").text)
+    tree.find(".//stop_frame").text = str(nb_frames - 1)
 
-    tracks = root.findall('track')
+    tracks = root.findall("track")
     # iterate over tracks
-    print('Upsampling annotations...')
+    print("Upsampling annotations...")
     for track in tqdm(tracks):
-        boxes = track.findall('box')
+        boxes = track.findall("box")
 
         # interpolate backwards the first object appearance
         box_to_backpropagate = copy.deepcopy(boxes[0].attrib)
-        frame = int(box_to_backpropagate['frame'])
+        attributes = boxes[0].findall("attribute")
+
+        frame = int(box_to_backpropagate["frame"])
         if frame > 0:
             new_frame = (frame * round(fps)) - 1
             while new_frame >= 0 and new_frame % round(fps) != 0:
                 x_shift, y_shift = get_shift(phase_corr, new_frame + 1, -1)
 
                 # add the shift in the box coordinates
-                xtl = float(box_to_backpropagate['xtl']) + x_shift
-                xbr = float(box_to_backpropagate['xbr']) + x_shift
-                ytl = float(box_to_backpropagate['ytl']) + y_shift
-                ybr = float(box_to_backpropagate['ybr']) + y_shift
+                xtl = float(box_to_backpropagate["xtl"]) + x_shift
+                xbr = float(box_to_backpropagate["xbr"]) + x_shift
+                ytl = float(box_to_backpropagate["ytl"]) + y_shift
+                ybr = float(box_to_backpropagate["ybr"]) + y_shift
 
                 # clip the box to get inside the frame
                 xtl = np.clip(xtl, 0, video_width)
@@ -101,16 +105,23 @@ if __name__ == '__main__':
                 if object_width < 20 or object_height < 20:
                     break
 
-                box_to_backpropagate['frame'] = str(f'{int(new_frame)}')
+                box_to_backpropagate["frame"] = str(f"{int(new_frame)}")
 
-                box_to_backpropagate['xtl'] = str(f'{xtl:.2f}')
-                box_to_backpropagate['xbr'] = str(f'{xbr:.2f}')
-                box_to_backpropagate['ytl'] = str(f'{ytl:.2f}')
-                box_to_backpropagate['ybr'] = str(f'{ybr:.2f}')
+                box_to_backpropagate["xtl"] = str(f"{xtl:.2f}")
+                box_to_backpropagate["xbr"] = str(f"{xbr:.2f}")
+                box_to_backpropagate["ytl"] = str(f"{ytl:.2f}")
+                box_to_backpropagate["ybr"] = str(f"{ybr:.2f}")
 
-                upsampled_box = ET.SubElement(track, 'box', box_to_backpropagate)
+                upsampled_box = ET.SubElement(track, "box", box_to_backpropagate)
                 upsampled_box.text = boxes[0].text
                 upsampled_box.tail = boxes[0].tail
+
+                for attribute in attributes:
+                    upsampled_attribute = ET.SubElement(
+                        upsampled_box, "attribute", attribute.attrib
+                    )
+                    upsampled_attribute.text = attribute.text
+                    upsampled_attribute.tail = attribute.tail
 
                 new_frame -= 1
                 box_to_backpropagate = copy.deepcopy(box_to_backpropagate)
@@ -120,7 +131,7 @@ if __name__ == '__main__':
         # iterate over bboxes
         for box_idx, box_labeled in enumerate(boxes):
             # First, set the manually labeled frame back to the original video
-            frame = int(box_labeled.attrib['frame'])
+            frame = int(box_labeled.attrib["frame"])
             box_labeled.set("frame", f"{int(frame*round(fps))}")
 
             if box_labeled.attrib["outside"] == "1":
@@ -129,15 +140,16 @@ if __name__ == '__main__':
             elif box_labeled.attrib["outside"] == "0":
                 new_frame = (frame * round(fps)) + 1
                 box_propagated_attrib = copy.deepcopy(box_labeled.attrib)
+                attributes = box_labeled.findall("attribute")
 
                 while new_frame % round(fps) != 0 and new_frame < nb_frames:
                     x_shift, y_shift = get_shift(phase_corr, new_frame - 1, 1)
 
                     # add the shift in the box coordinates
-                    xtl = float(box_propagated_attrib['xtl']) + x_shift
-                    xbr = float(box_propagated_attrib['xbr']) + x_shift
-                    ytl = float(box_propagated_attrib['ytl']) + y_shift
-                    ybr = float(box_propagated_attrib['ybr']) + y_shift
+                    xtl = float(box_propagated_attrib["xtl"]) + x_shift
+                    xbr = float(box_propagated_attrib["xbr"]) + x_shift
+                    ytl = float(box_propagated_attrib["ytl"]) + y_shift
+                    ybr = float(box_propagated_attrib["ybr"]) + y_shift
 
                     # clip the box to get inside the frame
                     xtl = np.clip(xtl, 0, video_width)
@@ -148,37 +160,44 @@ if __name__ == '__main__':
                     object_width = xbr - xtl
                     object_height = ybr - ytl
 
-                    box_propagated_attrib['frame'] = str(f'{int(new_frame)}')
+                    box_propagated_attrib["frame"] = str(f"{int(new_frame)}")
 
                     # drone warming up (rotating)
                     if new_frame < 30 or box_idx < 10:
-                        box_propagated_attrib['keyframe'] = "0"
+                        box_propagated_attrib["keyframe"] = "0"
                     else:
-                        box_propagated_attrib['keyframe'] = "1"
+                        box_propagated_attrib["keyframe"] = "1"
 
-                    box_propagated_attrib['xtl'] = str(f'{xtl:.2f}')
-                    box_propagated_attrib['xbr'] = str(f'{xbr:.2f}')
-                    box_propagated_attrib['ytl'] = str(f'{ytl:.2f}')
-                    box_propagated_attrib['ybr'] = str(f'{ybr:.2f}')
+                    box_propagated_attrib["xtl"] = str(f"{xtl:.2f}")
+                    box_propagated_attrib["xbr"] = str(f"{xbr:.2f}")
+                    box_propagated_attrib["ytl"] = str(f"{ytl:.2f}")
+                    box_propagated_attrib["ybr"] = str(f"{ybr:.2f}")
 
-                    box_propagated = ET.SubElement(track, 'box', box_propagated_attrib)
+                    box_propagated = ET.SubElement(track, "box", box_propagated_attrib)
                     box_propagated.text = box_labeled.text
                     box_propagated.tail = box_labeled.tail
 
+                    for attribute in attributes:
+                        upsampled_attribute = ET.SubElement(
+                            box_propagated, "attribute", attribute.attrib
+                        )
+                        upsampled_attribute.text = attribute.text
+                        upsampled_attribute.tail = attribute.tail
+
                     if object_width < 20 or object_height < 20:
-                        box_propagated_attrib['keyframe'] = "1"
-                        box_propagated_attrib['outside'] = "1"
+                        box_propagated_attrib["keyframe"] = "1"
+                        box_propagated_attrib["outside"] = "1"
                         break
 
                     new_frame += 1
                     box_propagated_attrib = copy.deepcopy(box_propagated_attrib)
 
         # sort by frame
-        sorted_track = sorted(track, key=lambda child: int(child.attrib['frame']))
+        sorted_track = sorted(track, key=lambda child: int(child.attrib["frame"]))
         track[:] = sorted_track
 
         # make all boxes "appear"
-        boxes = track.findall('box')
+        boxes = track.findall("box")
         [b.set("outside", "0") for b in boxes]
 
         boxes[-1].set("keyframe", "1")
@@ -189,8 +208,10 @@ if __name__ == '__main__':
             boxes[-1].set("outside", "1")
 
     # save file
-    tree.write(video_path.replace('.avi', '.xml'),
-               encoding="utf-8",
-               xml_declaration=True,
-               short_empty_elements=False)
-    print('end')
+    tree.write(
+        video_path.replace("videos", "annotations").replace(".avi", ".xml"),
+        encoding="utf-8",
+        xml_declaration=True,
+        short_empty_elements=False,
+    )
+    print("end")
